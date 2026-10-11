@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { boardHref } from '../lib/router'
-import { money, sized, storeCount, timeAgo } from '../lib/format'
+import { money, sizeLabel, storeCount, timeAgo } from '../lib/format'
 import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { MarketData } from '../types'
+import { BoardImage } from './BoardImage'
 import './Hero.css'
 
 const FEATURED = 5
@@ -19,6 +20,10 @@ export function Hero({ data }: { data: MarketData }) {
   )
   const [i, setI] = useState(0)
   const board = featured[i] ?? data.boards[0]
+  // Listings are sorted cheapest in-stock first, so [0] is the deal shown.
+  const deal = board.listings[0]
+  const dealSizes = deal ? deal.sizes.filter((s) => s.available).map(sizeLabel) : []
+  const dealStore = data.stores.find((s) => s.id === deal?.storeId)?.name
   const onSale = data.boards.filter((b) => b.discount > 0).length
   const best = Math.max(...data.boards.map((b) => b.discount))
 
@@ -100,7 +105,19 @@ export function Hero({ data }: { data: MarketData }) {
             <div>
               <div className="hero-item-brand">{board.brand}</div>
               <div className="hero-item-name display">{board.model}</div>
-              <div className="hero-item-stores">Best of {storeCount(board.listings)} stores</div>
+              <div className="hero-item-stores">
+                at {dealStore} · best of {storeCount(board.listings)} stores
+              </div>
+              {dealSizes.length > 0 && (
+                <div className="hero-item-sizes" aria-label="Sizes available at this price">
+                  {dealSizes.slice(0, 7).map((s) => (
+                    <span key={s} className="size">
+                      {s}
+                    </span>
+                  ))}
+                  {dealSizes.length > 7 && <span className="size">+{dealSizes.length - 7}</span>}
+                </div>
+              )}
             </div>
             <div className="hero-item-price">
               {board.discount > 0 && <span className="badge-deal">−{board.discount}%</span>}
@@ -120,7 +137,7 @@ export function Hero({ data }: { data: MarketData }) {
                   onClick={() => setI(n)}
                   title={`${b.brand} ${b.model}`}
                 >
-                  <img src={sized(b.images[0], 120)} alt="" />
+                  <BoardImage src={b.images[0]} alt="" width={160} />
                 </button>
               ))}
             </div>

@@ -128,6 +128,16 @@
   font-size: 13px;
   color: var(--muted);
 }
+.hero-item-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+.hero-item-sizes .size {
+  color: var(--ice);
+  background: rgba(138, 227, 255, 0.1);
+}
 .hero-item-price {
   display: flex;
   flex-direction: column;
@@ -154,15 +164,9 @@
   padding: 4px;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: linear-gradient(180deg, #eef5fc, #d4e4f4);
-  opacity: 0.55;
+  background: rgba(16, 26, 46, 0.7);
+  opacity: 0.6;
   transition: all 0.2s;
-}
-.hero-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  mix-blend-mode: multiply;
 }
 .hero-thumb:hover {
   opacity: 0.9;
