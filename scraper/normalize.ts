@@ -35,6 +35,8 @@ export interface Listing {
   inStock: boolean
   sizes: Size[]
   images: string[]
+  /** Pixel width of the first photo, used to pick the sharpest photo set. */
+  imageWidth: number
   specs: Specs
   description: string
 }
@@ -278,6 +280,7 @@ export function normalize(p: ShopifyProduct, store: Store): Listing {
     inStock: available.length > 0,
     sizes: sizesOf(p),
     images: p.images.slice(0, 6).map((i) => i.src),
+    imageWidth: p.images[0]?.width ?? 0,
     specs: specsOf(tags, `${p.title} ${description.slice(0, 600)}`),
     description: description.slice(0, 600),
   }

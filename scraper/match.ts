@@ -15,7 +15,7 @@ export interface Board {
   rrp: number
   discount: number
   inStock: boolean
-  listings: Omit<Listing, 'key' | 'brand' | 'model' | 'specs' | 'description'>[]
+  listings: Omit<Listing, 'key' | 'brand' | 'model' | 'specs' | 'description' | 'imageWidth'>[]
 }
 
 const mostCommon = <T>(values: T[]): T => {
@@ -51,8 +51,11 @@ export function groupBoards(listings: Listing[]): Board[] {
     // against this year's RRP.
     const sameSeason = ls.filter((l) => l.year === null || best.year === null || l.year === best.year)
     const rrp = Math.max(...sameSeason.map((l) => l.compareAt ?? l.price))
-    // Prefer the listing with the most photos (often includes base shots).
-    const imageSource = [...ls].sort((a, b) => b.images.length - a.images.length)[0]
+    // Prefer the sharpest photo set (stores range from ~680px to 1600px+),
+    // then the one with the most photos.
+    const imageSource = [...ls].sort(
+      (a, b) => Math.min(b.imageWidth, 1600) - Math.min(a.imageWidth, 1600) || b.images.length - a.images.length,
+    )[0]
     const genders = ls.map((l) => l.gender).filter((g) => g !== 'unisex')
     const years = ls.map((l) => l.year).filter((y): y is number => y !== null)
     const sizes = [...new Set(ls.flatMap((l) => l.sizes.filter((s) => s.available && s.cm).map((s) => s.cm!)))]
@@ -72,7 +75,7 @@ export function groupBoards(listings: Listing[]): Board[] {
       rrp,
       discount: rrp > best.price ? Math.round(((rrp - best.price) / rrp) * 100) : 0,
       inStock: ls.some((l) => l.inStock),
-      listings: ls.map(({ key: _k, brand: _b, model: _m, specs: _s, description: _d, ...rest }) => rest),
+      listings: ls.map(({ key: _k, brand: _b, model: _m, specs: _s, description: _d, imageWidth: _w, ...rest }) => rest),
     }
   })
 }
