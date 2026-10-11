@@ -18,6 +18,7 @@ const NEUTRAL = 24 // max channel spread for a backdrop colour (greys, not colou
 const BRIGHT = 150 // min luminance for a backdrop colour
 const MATCH = 7 // max per-channel distance from a backdrop colour
 const STEP = 10 // max summed change between neighbouring backdrop pixels
+const SHADOW_OVERFLOW = 0.01 // share of shadow growth allowed to run out of reach
 
 type RGB = [number, number, number]
 
@@ -168,6 +169,59 @@ async function build(url: string): Promise<string | null> {
     fill()
   }
 
+  // Soft drop shadows: a band of smoothly darkening grey hugging the board.
+  // Grow into neutral, bright-ish pixels that change gradually. A real shadow
+  // ends at the board's hard edge within a short distance; if the growth is
+  // still going when it runs out of reach, it's crawling across a pale board
+  // instead, so that pass is undone. Once a short pass proves the photo has
+  // shadows, a longer one clears pockets (like the gap between two boards).
+  const depth = new Uint16Array(n)
+  const queue = new Int32Array(n)
+  const before = new Uint8Array(n)
+  const shadowPass = (reach: number) => {
+    before.set(seen)
+    depth.fill(0)
+    let qh = 0
+    let qt = 0
+    for (let p = 0; p < n; p++) {
+      if (!seen[p]) continue
+      const x = p % w
+      if ((x > 0 && !seen[p - 1]) || (x < w - 1 && !seen[p + 1]) || (p >= w && !seen[p - w]) || (p < n - w && !seen[p + w]))
+        queue[qt++] = p
+    }
+    let claimed = 0
+    let overflow = 0
+    const step = (p: number, q: number) => {
+      if (seen[q] || transparent(p) || transparent(q) || !flatBright(q)) return
+      const a = p * 4
+      const b = q * 4
+      if (Math.abs(d[a] - d[b]) + Math.abs(d[a + 1] - d[b + 1]) + Math.abs(d[a + 2] - d[b + 2]) > STEP) return
+      // Plain backdrop resets the reach.
+      const dq = inPalette(q) ? 0 : depth[p] + 1
+      if (dq > reach) {
+        overflow++
+        return
+      }
+      seen[q] = 1
+      claimed++
+      depth[q] = dq
+      queue[qt++] = q
+    }
+    while (qh < qt) {
+      const p = queue[qh++]
+      const x = p % w
+      if (x > 0) step(p, p - 1)
+      if (x < w - 1) step(p, p + 1)
+      if (p >= w) step(p, p - w)
+      if (p < n - w) step(p, p + w)
+    }
+    if (overflow <= claimed * SHADOW_OVERFLOW) return claimed > 0
+    seen.set(before)
+    return false
+  }
+  const preShadow = seen.slice()
+  if (shadowPass(Math.max(8, Math.round(w * 0.06)))) shadowPass(Math.round(w * 0.25))
+
   // Erase 1–2px seams left between backdrop regions.
   for (let pass = 0; pass < 2; pass++) {
     const clear: number[] = []
@@ -236,9 +290,10 @@ async function build(url: string): Promise<string | null> {
   // Nothing (or almost nothing) removed means a real scene behind the board.
   if (x1 < 0 || removed < n * 0.05) return null
   // Too little left inside the bounds means a white board on a white backdrop
-  // got eaten: better to show the original photo than fragments.
+  // got eaten: better to show the original photo than fragments. (Shadow
+  // clearing has its own guard, so it isn't counted here.)
   let kept = 0
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) kept += seen[y * w + x] ? 0 : 1
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) kept += preShadow[y * w + x] ? 0 : 1
   if (kept < (x1 - x0 + 1) * (y1 - y0 + 1) * 0.55) return null
 
   ctx.putImageData(data, 0, 0)
