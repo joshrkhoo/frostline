@@ -7,6 +7,39 @@ const ROWS = 180
 const COLS = 18
 const ROCKER_LIFT = 0.07
 const ROCKER_START = 0.8 // fraction of half-length where the tips start lifting
+// Profile heights are exaggerated ~6x so they read on screen: real camber is only 5–8mm.
+const CAMBER = 0.045
+const ROCKER = 0.038
+
+// Smooth hump that eases to flat at ±width (no kink where it meets the rest).
+const bump = (u: number, width: number) => (Math.abs(u) >= width ? 0 : 0.5 * (1 + Math.cos((Math.PI * u) / width)))
+const smooth = (x: number) => x * x * (3 - 2 * x)
+
+/**
+ * Height of the board above its contact line between the contact points,
+ * for each camber profile. u runs -1 (nose contact) → 1 (tail contact).
+ * Positive lifts toward the top sheet, as when the board sits on snow.
+ */
+function profileHeight(profile: string | undefined, u: number): number {
+  const a = Math.abs(u)
+  switch (profile) {
+    case 'Camber':
+      // Classic arch: raised in the middle, touching down at both ends.
+      return CAMBER * (1 - u * u)
+    case 'Rocker':
+      // Banana: lowest in the middle, curving up toward the tips.
+      return ROCKER * u * u
+    case 'Hybrid Camber':
+      // Camber between the feet, rocker outside them (CamRock, C2, PurePop…).
+      return CAMBER * 0.8 * bump(u, 0.55) + ROCKER * smooth(Math.max(0, (a - 0.55) / 0.45)) * 0.9
+    case 'Hybrid Rocker':
+      // Rocker between the feet, camber under them (Flying V, C3…).
+      return -ROCKER * 0.7 * bump(u, 0.4) + CAMBER * 0.7 * Math.exp(-(((a - 0.62) / 0.17) ** 2)) + ROCKER * smooth(Math.max(0, (a - 0.8) / 0.2)) * 0.6
+    default:
+      // Flat or unknown.
+      return 0
+  }
+}
 
 /** Linearly samples a face's [left, right] edges at t (0 = nose, 1 = tail). */
 function edgesAt(face: BoardFace, t: number): [number, number] {
@@ -24,7 +57,7 @@ function edgesAt(face: BoardFace, t: number): [number, number] {
  * Groups: 0 = top sheet, 1 = base, 2 = sidewalls/edges.
  * The board stands upright: length along +Y (nose up), top sheet facing +Z.
  */
-export function buildBoardGeometry(top: BoardFace, base: BoardFace | null): THREE.BufferGeometry {
+export function buildBoardGeometry(top: BoardFace, base: BoardFace | null, profile?: string): THREE.BufferGeometry {
   const L = BOARD_LENGTH
   const widthWorld = L * top.aspect // crop width in world units
 
@@ -33,11 +66,13 @@ export function buildBoardGeometry(top: BoardFace, base: BoardFace | null): THRE
   const indices: number[] = []
   const groups: [number, number][] = []
 
+  // Tips always kick up; between the contact points the shape follows the profile.
   const rocker = (t: number) => {
-    const s = Math.abs(t * 2 - 1)
-    if (s <= ROCKER_START) return 0
+    const signed = t * 2 - 1
+    const s = Math.abs(signed)
+    if (s <= ROCKER_START) return profileHeight(profile, signed / ROCKER_START)
     const u = (s - ROCKER_START) / (1 - ROCKER_START)
-    return ROCKER_LIFT * u * u
+    return profileHeight(profile, Math.sign(signed)) + ROCKER_LIFT * u * u
   }
 
   // Per row: y, z offset, and left/right x in world units.
