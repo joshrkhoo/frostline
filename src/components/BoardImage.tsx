@@ -32,7 +32,7 @@ async function firstProductShot(srcs: string[], width: number): Promise<string |
  * into view. Falls back to the original photo on a light tile if the
  * backdrop can't be separated.
  */
-export function BoardImage({ src, alt, width = 480, className = '', altSrcs = [], showAlt = false }: Props) {
+export function BoardImage({ src, alt, width = 900, className = '', altSrcs = [], showAlt = false }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const [state, setState] = useState<{ url: string | null; done: boolean }>({ url: null, done: false })

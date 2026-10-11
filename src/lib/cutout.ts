@@ -23,7 +23,7 @@ type RGB = [number, number, number]
 
 const cache = new Map<string, Promise<string | null>>()
 
-export function cutout(src: string, width = 480): Promise<string | null> {
+export function cutout(src: string, width = 900): Promise<string | null> {
   const key = `${src}@${width}`
   if (!cache.has(key)) cache.set(key, build(sized(src, width)).catch(() => null))
   return cache.get(key)!
@@ -181,7 +181,38 @@ async function build(url: string): Promise<string | null> {
     for (const p of clear) seen[p] = 1
   }
 
-  // Clear the backdrop, soften the 1px fringe, and find the subject's bounds.
+  // Within 2px of the backdrop, keep the photo's own anti-aliasing: opacity
+  // follows how far the pixel's colour is from the backdrop, and the backdrop
+  // tint blended into it is removed so edges don't glow white on dark.
+  const nearBackdrop = (p: number, x: number, y: number) => {
+    for (let k = 1; k <= 2; k++) {
+      if ((x >= k && seen[p - k]) || (x < w - k && seen[p + k]) || (y >= k && seen[p - k * w]) || (y < h - k && seen[p + k * w]))
+        return true
+    }
+    return false
+  }
+  const feather = (i: number) => {
+    if (!palette.length) return
+    let best = palette[0]
+    let bestD = 999
+    for (const c of palette) {
+      const dd = Math.max(Math.abs(d[i] - c[0]), Math.abs(d[i + 1] - c[1]), Math.abs(d[i + 2] - c[2]))
+      if (dd < bestD) {
+        bestD = dd
+        best = c
+      }
+    }
+    const a = Math.min(1, Math.max(0, (bestD - MATCH) / 48))
+    if (a >= 1) return
+    if (a <= 0.02) {
+      d[i + 3] = 0
+      return
+    }
+    for (let k = 0; k < 3; k++) d[i + k] = Math.min(255, Math.max(0, (d[i + k] - best[k] * (1 - a)) / a))
+    d[i + 3] = Math.round(Math.min(d[i + 3], a * 255))
+  }
+
+  // Clear the backdrop, feather the edges, and find the subject's bounds.
   let x0 = w
   let y0 = h
   let x1 = -1
@@ -196,9 +227,7 @@ async function build(url: string): Promise<string | null> {
     }
     const x = p % w
     const y = (p - x) / w
-    const edge =
-      (x > 0 && seen[p - 1]) || (x < w - 1 && seen[p + 1]) || (y > 0 && seen[p - w]) || (y < h - 1 && seen[p + w])
-    if (edge) d[i + 3] = Math.min(d[i + 3], 170)
+    if (nearBackdrop(p, x, y)) feather(i)
     if (x < x0) x0 = x
     if (x > x1) x1 = x
     if (y < y0) y0 = y

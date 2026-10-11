@@ -86,7 +86,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
             <div className="viewer-photos">
               {board.images.slice(0, 6).map((src) => (
                 <a key={src} href={src} target="_blank" rel="noreferrer" className="viewer-photo">
-                  <BoardImage src={src} alt="" width={200} />
+                  <BoardImage src={src} alt="" width={400} />
                 </a>
               ))}
             </div>
