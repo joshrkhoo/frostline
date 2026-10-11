@@ -52,9 +52,12 @@ export function Hero({ data }: { data: MarketData }) {
             3D, and see who's selling it for the least.
           </p>
           <div className="hero-ctas">
-            <a href="#market" className="btn btn-primary">
+            <button
+              className="btn btn-primary"
+              onClick={() => document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' })}
+            >
               Browse {data.boards.length} boards
-            </a>
+            </button>
             <a href={boardHref(board.id)} className="btn">
               Today's top deal →
             </a>
@@ -89,6 +92,7 @@ export function Hero({ data }: { data: MarketData }) {
             brand={board.brand}
             model={board.model}
             autoSpin
+            cameraZ={3.5}
           />
           <div className="hero-drag chip">⟲ Drag to spin</div>
 

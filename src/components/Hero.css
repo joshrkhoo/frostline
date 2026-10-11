@@ -25,7 +25,7 @@
 
 .hero-title {
   margin: 18px 0 18px;
-  font-size: clamp(38px, 5.4vw, 72px);
+  font-size: clamp(36px, 4.4vw, 62px);
   font-weight: 800;
 }
 
@@ -84,7 +84,7 @@
 }
 .hero-stage {
   position: absolute;
-  inset: 0 0 60px;
+  inset: 0 0 140px;
 }
 
 .hero-drag {
