@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import { GENDER_LABEL, money, sized, storeCount } from '../lib/format'
 import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { BoardView } from '../three/BoardModel'
-import type { Board, MarketData } from '../types'
+import type { Board, MarketData, Size } from '../types'
 import { BoardCard } from './BoardCard'
 import './BoardDetail.css'
+
+/** One label per size across stores: "156cm Wide", "156WIDE", "156W" → "156W". */
+const sizeLabel = (s: Size) => (s.cm ? `${s.cm}${s.wide ? 'W' : ''}` : s.label.toUpperCase())
 
 const VIEWS: [BoardView, string][] = [
   ['top', 'Top'],
@@ -21,13 +24,13 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
 
   const sizeOptions = useMemo(() => {
     const all = new Map<string, number>()
-    for (const l of board.listings) for (const s of l.sizes) if (s.available) all.set(s.label.toUpperCase(), s.cm ?? 0)
+    for (const l of board.listings) for (const s of l.sizes) if (s.available) all.set(sizeLabel(s), s.cm ?? 0)
     return [...all.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([label]) => label)
   }, [board])
 
   const offers = useMemo(() => {
     const list = size
-      ? board.listings.filter((l) => l.sizes.some((s) => s.available && s.label.toUpperCase() === size))
+      ? board.listings.filter((l) => l.sizes.some((s) => s.available && sizeLabel(s) === size))
       : board.listings
     return [...list].sort((a, b) => Number(b.inStock) - Number(a.inStock) || a.price - b.price)
   }, [board, size])
@@ -170,8 +173,8 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
                   <div className="offer-sizes">
                     {o.inStock ? (
                       inSizes.slice(0, 8).map((s) => (
-                        <span key={s.label} className={`size ${size && s.label.toUpperCase() === size ? 'hit' : ''}`}>
-                          {s.label}
+                        <span key={s.label} className={`size ${size && sizeLabel(s) === size ? 'hit' : ''}`}>
+                          {sizeLabel(s)}
                         </span>
                       ))
                     ) : (
