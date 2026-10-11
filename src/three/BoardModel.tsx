@@ -60,9 +60,9 @@ export function BoardModel({ images, brand, model, view, onViewChange, autoSpin 
     if (!art) return { geometry: null, materials: null }
     const topTex = toTexture(art.top.canvas, maxAniso)
     const baseTex = art.base ? toTexture(art.base.canvas, maxAniso) : null
-    const top = new THREE.MeshPhysicalMaterial({ map: topTex, roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.18 })
+    const top = new THREE.MeshPhysicalMaterial({ map: topTex, roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.18, alphaTest: 0.5 })
     const base = baseTex
-      ? new THREE.MeshPhysicalMaterial({ map: baseTex, roughness: 0.22, clearcoat: 0.6, clearcoatRoughness: 0.1 })
+      ? new THREE.MeshPhysicalMaterial({ map: baseTex, roughness: 0.22, clearcoat: 0.6, clearcoatRoughness: 0.1, alphaTest: 0.5 })
       : new THREE.MeshPhysicalMaterial({ color: '#141b2b', roughness: 0.25, clearcoat: 0.8, sheen: 0.4, sheenColor: '#8ae3ff' })
     const side = new THREE.MeshStandardMaterial({ color: '#c9d4e3', metalness: 0.85, roughness: 0.28 })
     return { geometry: buildBoardGeometry(art.top, art.base, profile), materials: [top, base, side] }
