@@ -27,8 +27,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from scipy import ndimage
+from scipy.spatial import ConvexHull
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / 'public' / 'data' / 'boards.json'
@@ -78,6 +79,48 @@ def is_product_shot(im: Image.Image) -> bool:
     return (clear | light).mean() >= 0.6 or (clear | flat).mean() >= 0.9
 
 
+def hull_mask(c):
+    ys, xs = np.nonzero(c)
+    pts = np.c_[xs, ys][:: max(1, len(xs) // 4000)]
+    h = ConvexHull(pts)
+    img = Image.new('1', c.shape[::-1], 0)
+    ImageDraw.Draw(img).polygon([tuple(map(int, pts[v])) for v in h.vertices], fill=1)
+    return np.asarray(img)
+
+def mend(solid):
+    """Rebuild boards that came out in fragments: pieces sharing one board's
+    column of the photo are replaced by their outline (convex hull)."""
+    lab, n = ndimage.label(solid)
+    if n < 2:
+        return solid, False
+    h = solid.shape[0]
+    objs = ndimage.find_objects(lab)
+    sizes = ndimage.sum(solid, lab, range(1, n + 1))
+    big = [i for i in range(n) if sizes[i] >= solid.sum() * 0.01]
+    # Group pieces whose column ranges overlap.
+    bands = []
+    for i in sorted(big, key=lambda i: objs[i][1].start):
+        x0, x1 = objs[i][1].start, objs[i][1].stop
+        for b in bands:
+            ov = min(x1, b['x1']) - max(x0, b['x0'])
+            if ov > 0.5 * min(x1 - x0, b['x1'] - b['x0']):
+                b['ids'].append(i); b['x0'] = min(b['x0'], x0); b['x1'] = max(b['x1'], x1); break
+        else:
+            bands.append({'ids': [i], 'x0': x0, 'x1': x1})
+    out = solid.copy(); changed = False
+    for b in bands:
+        if len(b['ids']) < 3:
+            continue
+        c = np.isin(lab, [i + 1 for i in b['ids']])
+        ys = np.nonzero(c.any(1))[0]
+        if ys[-1] - ys[0] < h * 0.6:
+            continue
+        hull = hull_mask(c)
+        if c.sum() / hull.sum() < 0.8:
+            out |= hull; changed = True
+    return out, changed
+
+
 def make_mask(session, im: Image.Image) -> np.ndarray:
     from rembg import remove
 
@@ -86,7 +129,9 @@ def make_mask(session, im: Image.Image) -> np.ndarray:
     # Respect transparency the photo already has.
     a = np.minimum(a, np.asarray(im)[:, :, 3])
     solid = a > 100
-    # Pale boards can come out see-through; anything enclosed by the outline is board.
+    # Pale boards can come out see-through or in pieces; anything enclosed by
+    # the outline is board.
+    solid, _ = mend(solid)
     filled = ndimage.binary_fill_holes(solid)
     # Drop specks well away from the board(s).
     lab, n = ndimage.label(filled)
@@ -121,7 +166,10 @@ def process(session, url: str, im: Image.Image | None) -> dict:
     k = key(url)
     crop.save(OUT / f'{k}.png', optimize=True)
     out = {'k': k, 'b': [round(x0 / w, 5), round(y0 / h, 5), round(x1 / w, 5), round(y1 / h, 5)]}
-    if ends > 0.3 or sides > OFF_FRAME:
+    # A crop touching both a side and an end of the photo is an angled close-up.
+    touch_side = x0 <= w * 0.01 or x1 >= w * 0.99
+    touch_end = y0 <= h * 0.01 or y1 >= h * 0.99
+    if ends > 0.3 or sides > OFF_FRAME or (touch_side and touch_end):
         out['c'] = 1
     # Lying sideways or shot at an angle: fine in a gallery, odd on a card.
     if x1 - x0 > y1 - y0:
