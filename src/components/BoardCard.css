@@ -205,3 +205,26 @@
   border: 2px solid var(--panel-solid);
   box-shadow: 0 0 0 1px var(--line-strong);
 }
+
+@media (max-width: 560px) {
+  .card-stage {
+    height: 210px;
+  }
+  .card-body {
+    padding: 12px;
+  }
+  .card-meta {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10.5px;
+  }
+  .card-title {
+    font-size: 15px;
+  }
+  .card-price .price {
+    font-size: 17px;
+  }
+  .card-stores {
+    display: none;
+  }
+}
