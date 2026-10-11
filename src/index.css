@@ -94,6 +94,19 @@ img {
 
 /* ---------- shared primitives ---------- */
 
+.ice-text {
+  background: linear-gradient(135deg, #e6fbff, var(--ice) 40%, var(--ice-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.gold-text {
+  background: linear-gradient(135deg, #ffe2a3, var(--gold) 50%, var(--gold-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .glass {
   background: var(--panel);
   border: 1px solid var(--line);

@@ -15,12 +15,6 @@
   margin: 8px 0 6px;
   font-size: clamp(26px, 3vw, 38px);
 }
-.ice-text {
-  background: linear-gradient(135deg, #e6fbff, var(--ice) 40%, var(--ice-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
 .market-count {
   margin: 0;
   color: var(--muted);
