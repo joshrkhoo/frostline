@@ -35,7 +35,7 @@ A GitHub Action (`.github/workflows/scrape.yml`) re-scrapes daily and commits th
 
 ## Australian snowboard shops
 
-**Scraped now.** These are all Shopify stores with a public `/products.json` feed:
+**Scraped now.** These are all Shopify stores with a public `/products.json` feed. Only in-stock listings are kept:
 
 | Store | Site | Base |
 | --- | --- | --- |
@@ -46,6 +46,8 @@ A GitHub Action (`.github/workflows/scrape.yml`) re-scrapes daily and commits th
 | Balmoral Boards | balmoralboards.com.au | Sydney |
 | Paul Reader | paulreader.com.au | Sydney |
 | Snow Monkey | snowmonkey.com.au | Melbourne |
+| Melbourne Snowboard Centre | melbournesnowboard.com.au | Preston, Melbourne |
+| Bumps | bumps.com.au | Elsternwick, Melbourne (only ~1 board online right now) |
 
 **Not yet scraped.** These aren't on Shopify or block the feed, so each needs its own HTML adapter:
 
@@ -54,6 +56,7 @@ A GitHub Action (`.github/workflows/scrape.yml`) re-scrapes daily and commits th
 - Boardstore (boardstore.com.au)
 - Wild Earth (wildearth.com.au) and Anaconda (anaconda.com.au): outdoor chains with a small snowboard range
 - Boardcave (boardcave.com.au): Shopify, but returns 403 to the feed
+- Boardworld (boardworld.com.au): Shopify, but its snow range is left out of the public feed (only skate gear shows up); would need its search-filter API
 - Surf Dive 'n Ski: mostly surf, with some snow gear in season
 
 ## Pricing APIs
