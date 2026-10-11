@@ -24,7 +24,7 @@ export interface ShopifyProduct {
 
 const UA = 'Mozilla/5.0 (compatible; FrostlineBot/0.1; +https://github.com/joshrkhoo/frostline)'
 const PAGE_SIZE = 250
-const MAX_PAGES = 40
+const MAX_PAGES = 100
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
