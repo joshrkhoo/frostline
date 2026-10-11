@@ -26,3 +26,6 @@ dist-ssr
 # scraper raw downloads
 .cache
 .vercel
+
+# python
+__pycache__
