@@ -25,3 +25,4 @@ dist-ssr
 
 # scraper raw downloads
 .cache
+.vercel
