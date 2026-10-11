@@ -1,73 +1,236 @@
-# Frostline
+<div align="center">
 
-An interactive marketplace for snowboard deals in Australia. Each board appears once. You can spin it in 3D to see the top sheet, base and sidewall, then compare which Australian shops sell it and for how much.
+# ❄️ Frostline
 
-Snowboards only for now. Bindings, boots and gear come later.
+**An interactive marketplace for snowboard deals across Australia.**
+
+Find a board, spin it in 3D, and see which shop sells it for the least.
+
+[**Live demo → frostline.joshrkhoo.com**](https://frostline.joshrkhoo.com) · [frostline-nine.vercel.app](https://frostline-nine.vercel.app)
+
+![React](https://img.shields.io/badge/React_19-20232a?logo=react&logoColor=61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)
+![three.js](https://img.shields.io/badge/three.js-000000?logo=threedotjs&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646cff?logo=vite&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088ff?logo=githubactions&logoColor=white)
+
+<img src="docs/screenshots/spin.gif" alt="A CAPiTA D.O.A. snowboard spinning in the 3D viewer" width="300" />
+
+</div>
+
+---
+
+## What it is
+
+Frostline isn't a general shopping search. It's a marketplace built only for snowboards and only for deals:
+
+- **Board first, then shops.** Each board appears once. Open it to compare every Australian shop selling it, with price, original price, discount and sizes in stock.
+- **See the whole board.** Every board can be spun in 3D: top sheet, base and sidewall. The 3D model is built from the shops' own product photos.
+- **Deals up front.** Discounts compare against the same season's RRP, so an older model never looks like a bigger saving than it is.
+
+Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other gear are planned.
+
+## Screenshots
+
+| Home | Marketplace |
+| --- | --- |
+| ![Home page with featured deal on a 3D pedestal](docs/screenshots/home.jpg) | ![Marketplace grid with filters](docs/screenshots/marketplace.jpg) |
+
+| Board page |
+| --- |
+| ![Board page with 3D viewer and per-store price comparison](docs/screenshots/board.jpg) |
+
+## Features
+
+**Marketplace**
+- Search across brand, model, year, terrain and profile. It tolerates spacing differences, so "counter balance" matches "Counterbalance".
+- Filters for deal size, price range, rider (men's, women's, kids), board length, terrain, camber profile, brand, store and splitboards.
+- Sort by biggest discount, price, number of stores or name.
+- Every board photo has its studio backdrop removed in the browser, so all boards float on the same dark ice stage instead of white or grey boxes. Cards lift on hover and switch to another product shot of the board (base or another angle). Lifestyle photos are skipped automatically.
+
+**Featured deals**
+- The hero shows today's biggest markdowns on a 3D pedestal, with the shop offering the deal and the sizes in stock at that price.
+
+**Board page**
+- 3D viewer: drag to spin with inertia, or snap to **Top / Base / Side**. The board floats above a glowing ice pedestal.
+- Best price at a glance, with the saving and a link straight to the shop.
+- Every offer from every store, with the cheapest highlighted. Pick a size to see only the shops that have it in stock.
+- Specs (profile, shape, flex, level, terrain, season) merged from all stores' data.
+- "More deals like this" from the same brand or terrain.
+
+**Data**
+- Prices re-scraped daily by a GitHub Action.
+- Only in-stock listings are kept.
 
 ## How it works
 
 ```
-scraper/            Node + TypeScript scraper (run with tsx)
-  stores.ts         the shops we track
-  shopify.ts        pages through each shop's public /products.json feed
-  classify.ts       keeps real boards, drops boots/bindings/outerwear/accessories
-  normalize.ts      brand, model, year, gender, sizes, price, RRP, specs from tags
-  match.ts          groups the same board across shops into one entry
-  index.ts          writes public/data/boards.json
-src/                React + Vite front end
-  lib/boardArt.ts   finds the board(s) in each product photo, crops top/base, traces the outline
-  three/            react-three-fiber board mesh, built from that outline, plus the pedestal stage
-  components/       header/search, hero, filters, cards, detail page, stores
+ ┌──────────────── scraper (Node, daily via GitHub Actions) ────────────────┐
+ │                                                                         │
+ │  9 Shopify stores ──► /products.json ──► classify ──► normalize ──► match │
+ │  (paged, polite)        ~57k products     boards only   brand/model/     │
+ │                                                          size/price/specs│
+ └───────────────────────────────────────────────┬─────────────────────────┘
+                                                 ▼
+                                    public/data/boards.json  (static)
+                                                 │
+ ┌──────────────────── React app (Vercel) ───────┴─────────────────────────┐
+ │  search + filters ──► cards ──► board page ──► 3D viewer                │
+ │                                               (built from product photos)│
+ └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-The 3D board is made from the stores' own product photos, with no 3D models needed. The browser reads each photo and separates the board(s) from the plain backdrop. It handles three photo layouts: top and base side by side in one image, separate top and base images, and side-profile shots (which it skips). It crops each board and records its outline row by row. The mesh follows that outline, gets rocker at the tips and sidewalls, and has the top and base graphics mapped onto it. A board with no usable photo falls back to a generated design.
+### 1. Scraping
+Every tracked shop runs on Shopify, which exposes the catalogue publicly at `/products.json`. The scraper pages through each one with a small delay between requests and backs off when the shop rate-limits it. It caches the raw download in `.cache/` so you can iterate without hitting the shops again.
 
-## Running it
+### 2. Classifying
+Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a generic `Snowboard` type covering every snow product, a `Boards` type plus a `snowboard` tag, or no type at all with a `JUNIOR SNOWBOARDS` tag. `classify.ts` handles all of these and drops boots, bindings, bags, outerwear and accessories.
+
+### 3. Normalizing
+`normalize.ts` turns each product into a listing. It:
+- extracts the bare model name from titles like `Ride Mens Warpig Snowboard (2024)`, `Nitro Dinghy Snowboard | 2027` and `Jones 2027 Howler Splitboard - 161cm`
+- detects season, rider and splitboard
+- normalises sizes (`156cm Wide` → `156W`)
+- reads the price and the shop's `compare_at_price` (the original price), so discounts are the shops' own markdowns
+- parses specs from at least four different tag schemes
+
+### 4. Matching
+`match.ts` groups listings into one board by brand plus a normalised model key. The key handles spacing and naming differences, such as "Counter Balance" vs "Counterbalance Camber". Kids "Grom" versions stay separate from the adult boards. The board's discount compares the best in-stock price with the same season's RRP.
+
+### 5. Cut-outs and 3D from product photos
+**Cut-outs.** `src/lib/cutout.ts` learns the backdrop colours from the photo's border and flood-fills inward through connected pixels that match them closely. That keeps near-white board graphics intact. If what's left is framed by a flat grey box (a common Burton layout), the box is removed too. Already-transparent PNGs work as-is. The result is trimmed to the board and cached. A photo with no plain backdrop, such as a lifestyle shot, fails the cut-out, and the hover view uses that to pick only product shots.
+
+**3D.** No 3D models are needed. `src/lib/boardArt.ts` runs in the browser:
+1. Loads the product photos from Shopify's CDN, which allows cross-origin image reads.
+2. Separates the board from the plain backdrop and finds each upright board by scanning columns. This handles top and base side by side in one photo, separate top and base photos, and side-profile shots (which it skips).
+3. Crops each board, records its outline row by row, and extends the edge colours outward so the backdrop never shows at the edges.
+
+`src/three/boardGeometry.ts` then builds a mesh that follows that outline exactly. It has rocker at the nose and tail, metal-edged sidewalls, the top-sheet photo on top and the base photo mirrored onto the bottom. A board with no usable photos gets a generated design instead.
+
+## Tech stack
+
+| Layer | Tools |
+| --- | --- |
+| Front end | React 19, TypeScript, Vite |
+| 3D | three.js, @react-three/fiber, @react-three/drei (lighting, contact shadows, snow sparkles) |
+| Styling | Hand-written CSS with design tokens. Unbounded and Manrope fonts |
+| Scraper | Node 22, TypeScript via `tsx`, native `fetch` |
+| Data | One static JSON file (`public/data/boards.json`, about 200 KB gzipped) |
+| Hosting | Vercel (static site) |
+| Automation | GitHub Actions, scheduled daily scrape |
+
+There's no backend or database. The site is plain static files, and three.js is lazy-loaded so the marketplace renders before the 3D bundle arrives.
+
+## Stores tracked
+
+| Store | Website | Location | Boards in stock |
+| --- | --- | --- | --- |
+| Auski | [auski.com.au](https://auski.com.au) | Melbourne, VIC | ~140 |
+| Melbourne Snowboard Centre | [melbournesnowboard.com.au](https://www.melbournesnowboard.com.au) | Preston, VIC | ~190 |
+| Balmoral Boards | [balmoralboards.com.au](https://balmoralboards.com.au) | Sydney, NSW | ~120 |
+| Rhythm Snowsports | [rhythmsnowsports.com.au](https://rhythmsnowsports.com.au) | Sydney, NSW + resorts | ~80 |
+| Twelve Board Store | [twelveboardstore.com.au](https://twelveboardstore.com.au) | Melbourne, VIC | ~80 |
+| Paul Reader | [paulreader.com.au](https://paulreader.com.au) | Sydney, NSW | ~25 |
+| Snow Monkey | [snowmonkey.com.au](https://snowmonkey.com.au) | Melbourne, VIC | ~25 |
+| Larry Adler | [larryadler.com.au](https://larryadler.com.au) | Sydney, NSW | ~15 |
+| Bumps | [bumps.com.au](https://bumps.com.au) | Elsternwick, VIC | ~1 (little snow stock online) |
+
+Counts change with every scrape. The live numbers are on the site under **Tracked stores**.
+
+**Not yet supported.** These need their own adapters:
+- **Boardworld:** Shopify, but its snow range is hidden from the public feed. It would need the shop's search-filter API.
+- **Boardcave:** Shopify, but returns 403 to the feed.
+- **X-Dream, STM, Boardstore, Wild Earth, Anaconda:** not on Shopify, so each needs HTML scraping.
+
+## Getting started
+
+Requires Node 22+.
 
 ```bash
+git clone git@github.com:joshrkhoo/frostline.git
+cd frostline
 npm install
-npm run scrape          # fetch fresh prices from every store (~1 min)
-npm run scrape:cached   # rebuild boards.json from the last download in .cache/
-npm run dev
+npm run dev            # http://localhost:5173, using the committed boards.json
 ```
 
-A GitHub Action (`.github/workflows/scrape.yml`) re-scrapes daily and commits the new `boards.json`.
+### Scripts
 
-## Australian snowboard shops
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Typecheck the app and scraper, then build to `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run scrape` | Download every store's catalogue and rebuild `public/data/boards.json` (~1–2 min) |
+| `npm run scrape:cached` | Rebuild `boards.json` from the last download in `.cache/`, without network calls |
 
-**Scraped now.** These are all Shopify stores with a public `/products.json` feed. Only in-stock listings are kept:
+### Adding a store
+For a Shopify store, add one line to `scraper/stores.ts`:
 
-| Store | Site | Base |
-| --- | --- | --- |
-| Auski | auski.com.au | Melbourne |
-| Rhythm Snowsports | rhythmsnowsports.com.au | Sydney + resorts |
-| Twelve Board Store | twelveboardstore.com.au | Melbourne |
-| Larry Adler | larryadler.com.au | Sydney |
-| Balmoral Boards | balmoralboards.com.au | Sydney |
-| Paul Reader | paulreader.com.au | Sydney |
-| Snow Monkey | snowmonkey.com.au | Melbourne |
-| Melbourne Snowboard Centre | melbournesnowboard.com.au | Preston, Melbourne |
-| Bumps | bumps.com.au | Elsternwick, Melbourne (only ~1 board online right now) |
+```ts
+{ id: 'mystore', name: 'My Store', domain: 'mystore.com.au', location: 'Hobart, TAS', platform: 'shopify' },
+```
 
-**Not yet scraped.** These aren't on Shopify or block the feed, so each needs its own HTML adapter:
+Then run `npm run scrape` and check the per-store board count in the output. If it's 0, see how that store labels its boards (product type or tags) and extend `scraper/classify.ts`.
 
-- X-Dream (xdream.com.au): online-focused snow shop
-- STM (stm.com.au): Bondi Junction
-- Boardstore (boardstore.com.au)
-- Wild Earth (wildearth.com.au) and Anaconda (anaconda.com.au): outdoor chains with a small snowboard range
-- Boardcave (boardcave.com.au): Shopify, but returns 403 to the feed
-- Boardworld (boardworld.com.au): Shopify, but its snow range is left out of the public feed (only skate gear shows up); would need its search-filter API
-- Surf Dive 'n Ski: mostly surf, with some snow gear in season
+## Project structure
+
+```
+frostline/
+├── scraper/
+│   ├── stores.ts          shops to track
+│   ├── shopify.ts         paginated products.json fetcher with retry
+│   ├── classify.ts        is this product a snowboard?
+│   ├── normalize.ts       product → listing (model, sizes, price, specs)
+│   ├── match.ts           listings → boards across stores
+│   └── index.ts           entry point, writes public/data/boards.json
+├── src/
+│   ├── lib/
+│   │   ├── boardArt.ts    photo → board textures and outline
+│   │   ├── cutout.ts      photo → transparent cut-out (backdrop removal)
+│   │   ├── filters.ts     search, filters, sorting, facets
+│   │   ├── data.ts        loads boards.json
+│   │   ├── router.ts      hash router (#/board/:id)
+│   │   └── format.ts      AUD formatting, Shopify image resizing
+│   ├── three/
+│   │   ├── boardGeometry.ts   outline → mesh (rocker, sidewalls, UVs)
+│   │   ├── BoardModel.tsx     drag-to-spin, preset views, idle float
+│   │   ├── BoardStage.tsx     canvas, lights, pedestal, sparkles
+│   │   └── LazyBoardStage.tsx loads three.js on demand
+│   └── components/        Header, Hero, Marketplace, FilterPanel, BoardCard, BoardImage, BoardDetail, StoresSection
+├── public/data/boards.json    scraped data (updated daily)
+├── .github/workflows/scrape.yml
+└── docs/screenshots/
+```
+
+## Deployment
+
+- **Hosting:** Vercel, as a static Vite build. Deploy manually with `vercel deploy --prod`.
+- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper and commits the updated `boards.json`. It can also be triggered by hand from the Actions tab.
 
 ## Pricing APIs
 
 There's no snowboard-specific pricing API, and no Australian one either. The options are:
 
-- **Shopify `/products.json` (what we use).** Free, public, structured, and includes `compare_at_price`, so we get real "was" prices. It's unofficial, so a store can turn it off.
-- **General price-comparison APIs** such as PriceAPI and the Zyla Labs marketplace listings. These are paid and focused on Amazon, eBay and Google Shopping. They have little coverage of Australian specialist snow shops.
-- **Google Shopping via SerpApi and similar.** Paid. Useful for catching shops we don't scrape, but the data is noisier.
-- **Affiliate product feeds** (Commission Factory is the main network in Australia). This is the "official" route: retailers publish full product feeds to affiliates. No dedicated snow shop showed up with a feed, but it's worth applying once the site has traffic. It would also earn commission on click-outs.
+| Option | Notes |
+| --- | --- |
+| **Shopify `/products.json`** (used) | Free, public and structured. Includes `compare_at_price`, so we get real "was" prices. Unofficial, so a shop can turn it off. |
+| General price APIs (PriceAPI, Zyla Labs) | Paid, and focused on Amazon, eBay and Google Shopping. Little coverage of Australian specialist snow shops. |
+| Google Shopping (SerpApi etc.) | Paid. Wider reach, but noisier data. |
+| Affiliate feeds (Commission Factory) | The official route: full product feeds plus commission on click-outs. Worth applying for once the site has traffic. |
 
-## Design
+## Roadmap
 
-The visual direction follows Phenomenon Studio's *Frozeverse* NFT marketplace: dark icy navy, frosted-glass panels, cyan glows, warm gold for deals, and items shown floating above a glowing pedestal.
+- [ ] Bindings, boots, outerwear and accessories
+- [ ] Price history and price-drop alerts
+- [ ] Adapters for non-Shopify shops (X-Dream, STM, Boardstore)
+- [ ] Boardworld via its search API
+- [ ] Size-aware best price on cards
+- [ ] Auto-deploy on each daily data commit
+
+## Credits
+
+- Visual direction inspired by [Frozeverse – in-game NFT Marketplace](https://dribbble.com/shots/19106417-Frozeverse-in-game-NFT-Marketplace) by Phenomenon Studio.
+- Board photos, prices and stock belong to the retailers listed above. Frostline links to their stores for every purchase.
+
+> Prices and stock can change at any time. Always check the retailer's site before buying.
