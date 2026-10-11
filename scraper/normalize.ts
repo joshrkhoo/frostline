@@ -284,5 +284,10 @@ export function normalize(p: ShopifyProduct, store: Store): Listing {
 }
 
 function titleCaseIfShouty(s: string) {
-  return s === s.toLowerCase() || s === s.toUpperCase() ? titleCase(s) : s
+  if (s !== s.toLowerCase() && s !== s.toUpperCase()) return s
+  // Leave acronyms like "D.O.A." alone.
+  return s
+    .split(' ')
+    .map((w) => (w.includes('.') ? w.toUpperCase() : titleCase(w)))
+    .join(' ')
 }
