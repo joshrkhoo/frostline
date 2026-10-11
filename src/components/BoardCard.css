@@ -52,7 +52,9 @@
   box-shadow: 0 0 22px rgba(138, 227, 255, 0.4), inset 0 0 14px rgba(138, 227, 255, 0.25);
 }
 
-.card-board {
+/* Doubled class so it beats .board-img's 100% size, which pushed the board's
+   tail out of the stage and clipped it. */
+.card-board.card-board {
   position: absolute;
   inset: 18px 14px 34px;
   width: auto;
