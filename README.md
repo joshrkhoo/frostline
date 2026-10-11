@@ -205,8 +205,8 @@ frostline/
 
 ## Deployment
 
-- **Hosting:** Vercel, as a static Vite build. Deploy manually with `vercel deploy --prod`.
-- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper and commits the updated `boards.json`. It can also be triggered by hand from the Actions tab.
+- **Hosting:** Vercel, as a static Vite build. The repo is connected to Vercel, so every push to `main` deploys automatically.
+- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper and commits the updated `boards.json`, and that commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
 
 ## Pricing APIs
 
@@ -226,7 +226,7 @@ There's no snowboard-specific pricing API, and no Australian one either. The opt
 - [ ] Adapters for non-Shopify shops (X-Dream, STM, Boardstore)
 - [ ] Boardworld via its search API
 - [ ] Size-aware best price on cards
-- [ ] Auto-deploy on each daily data commit
+- [x] Auto-deploy on each daily data commit
 
 ## Credits
 
