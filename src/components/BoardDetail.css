@@ -42,7 +42,7 @@
   filter: blur(40px);
 }
 .viewer-stage {
-  position: absolute !important;
+  position: absolute;
   inset: 0 0 110px;
 }
 

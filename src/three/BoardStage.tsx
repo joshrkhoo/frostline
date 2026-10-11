@@ -13,6 +13,8 @@ interface Props {
   className?: string
   /** Show the glowing pedestal under the board. */
   pedestal?: boolean
+  /** Camera distance; larger shows more space around the board. */
+  cameraZ?: number
 }
 
 /** Glowing ice pedestal the board floats above (Frozeverse-style item stand). */
@@ -44,12 +46,13 @@ export function BoardStage({
   autoSpin = true,
   className,
   pedestal = true,
+  cameraZ = 3.3,
 }: Props) {
   return (
-    <div className={className} style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div className={className}>
       <Canvas
         dpr={[1, 2]}
-        camera={{ position: [0, 0.05, 3.3], fov: 38 }}
+        camera={{ position: [0, 0.05, cameraZ], fov: 38 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
