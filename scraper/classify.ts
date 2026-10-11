@@ -4,7 +4,7 @@ const BOARD_TYPE = /snow\s?boards?|splitboards?/i
 // Tag-only stores: "snowboard", "MENS SNOWBOARDS", "JUNIOR SNOWBOARDS"...
 const BOARD_TAG = /^((mens|womens|men's|women's|junior|kids|youth)\s+)?(snowboards?|splitboards?)$/i
 const NOT_A_BOARD =
-  /boot|binding|bag|jacket|pant|glove|mitt|wax|leash|stomp|tool|helmet|goggle|sock|lock|skins?\b|clip|\bkit\b|access|spare|\bparts?\b|puck|crampon|package|bundle|hoodie|tee\b|beanie|sticker|voucher|gift card|rental|service|tune|repair|\bbib\b|overall|shell|fleece|vest|layer|shirt|shorts?\b|hood/i
+  /boot|binding|bag|jacket|pant|glove|mitt|wax|leash|stomp|tool|helmet|goggle|sock|lock|skins?\b|clip|\bkit\b|access|spare|\bparts?\b|puck|crampon|package|bundle|hoodie|tee\b|beanie|sticker|voucher|gift card|rental|service|tune|repair|\bbib\b|overall|shell|fleece|vest|layer|shirt|shorts?\b|hood|roller|hardside|case\b|cover/i
 
 /**
  * True when a Shopify product is an actual snowboard or splitboard,
