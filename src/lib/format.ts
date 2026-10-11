@@ -21,4 +21,8 @@ export function timeAgo(iso: string): string {
   return `${Math.round(hrs / 24)}d ago`
 }
 
+/** One label per size across stores: "156cm Wide", "156WIDE", "156W" → "156W". */
+export const sizeLabel = (s: { cm: number | null; wide: boolean; label: string }) =>
+  s.cm ? `${s.cm}${s.wide ? 'W' : ''}` : s.label.toUpperCase()
+
 export const storeCount = (listings: { storeId: string }[]) => new Set(listings.map((l) => l.storeId)).size

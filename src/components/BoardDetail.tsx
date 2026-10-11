@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react'
-import { GENDER_LABEL, money, sized, storeCount } from '../lib/format'
+import { GENDER_LABEL, money, sizeLabel, storeCount } from '../lib/format'
 import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { BoardView } from '../three/BoardModel'
-import type { Board, MarketData, Size } from '../types'
+import type { Board, MarketData } from '../types'
 import { BoardCard } from './BoardCard'
+import { BoardImage } from './BoardImage'
 import './BoardDetail.css'
-
-/** One label per size across stores: "156cm Wide", "156WIDE", "156W" → "156W". */
-const sizeLabel = (s: Size) => (s.cm ? `${s.cm}${s.wide ? 'W' : ''}` : s.label.toUpperCase())
 
 const VIEWS: [BoardView, string][] = [
   ['top', 'Top'],
@@ -88,7 +86,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
             <div className="viewer-photos">
               {board.images.slice(0, 6).map((src) => (
                 <a key={src} href={src} target="_blank" rel="noreferrer" className="viewer-photo">
-                  <img src={sized(src, 160)} alt="" loading="lazy" />
+                  <BoardImage src={src} alt="" width={200} />
                 </a>
               ))}
             </div>
