@@ -23,7 +23,7 @@ type RGB = [number, number, number]
 
 const cache = new Map<string, Promise<string | null>>()
 
-export function cutout(src: string, width = 900): Promise<string | null> {
+export function cutout(src: string, width = 1200): Promise<string | null> {
   const key = `${src}@${width}`
   if (!cache.has(key)) cache.set(key, build(sized(src, width)).catch(() => null))
   return cache.get(key)!
