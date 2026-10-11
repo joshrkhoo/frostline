@@ -49,11 +49,6 @@ export function FilterPanel({ filters: f, onChange, facets, stores }: Props) {
 
       <div className="fp-toggles">
         <label className="switch">
-          <input type="checkbox" checked={f.inStockOnly} onChange={(e) => set({ inStockOnly: e.target.checked })} />
-          <span />
-          In stock only
-        </label>
-        <label className="switch">
           <input type="checkbox" checked={f.splitboards} onChange={(e) => set({ splitboards: e.target.checked })} />
           <span />
           Include splitboards

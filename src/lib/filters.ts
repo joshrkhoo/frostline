@@ -14,7 +14,6 @@ export interface Filters {
   maxPrice: number | null
   minDiscount: number
   size: number | null
-  inStockOnly: boolean
   splitboards: boolean
   sort: SortKey
 }
@@ -30,7 +29,6 @@ export const DEFAULT_FILTERS: Filters = {
   maxPrice: null,
   minDiscount: 0,
   size: null,
-  inStockOnly: true,
   splitboards: true,
   sort: 'deal',
 }
@@ -50,7 +48,6 @@ function matchesQuery(b: Board, query: string): boolean {
 
 export function applyFilters(boards: Board[], f: Filters): Board[] {
   const out = boards.filter((b) => {
-    if (f.inStockOnly && !b.inStock) return false
     if (!f.splitboards && b.category === 'splitboard') return false
     if (f.brands.length && !f.brands.includes(b.brand)) return false
     if (f.genders.length && !f.genders.includes(b.gender)) return false
