@@ -47,7 +47,7 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 - Search across brand, model, year, terrain and profile. It tolerates spacing differences, so "counter balance" matches "Counterbalance".
 - Filters for deal size, price range, rider (men's, women's, kids), board length, terrain, camber profile, brand, store and splitboards.
 - Sort by biggest discount, price, number of stores or name.
-- Every board photo has its studio backdrop removed in the browser, so all boards float on the same dark ice stage instead of white or grey boxes. Cards lift on hover and switch to another product shot of the board (base or another angle). Lifestyle photos are skipped automatically.
+- Every board photo has its studio backdrop removed by an AI segmentation model (BiRefNet), so all boards float on the same dark ice stage instead of white or grey boxes. This includes white boards shot on white. Cards always show an upright photo of the whole board, lift on hover, and switch to another product shot of the board (base or another angle). Lifestyle photos and close-ups are skipped automatically.
 
 **Featured deals**
 - The hero shows today's biggest markdowns on a 3D pedestal, with the shop offering the deal and the sizes in stock at that price.
@@ -76,6 +76,8 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
                                                  ▼
                                     public/data/boards.json  (static)
                                                  │
+                     scraper/cutouts.py (Python, BiRefNet) ──► public/cutouts/  (masks)
+                                                 │
  ┌──────────────────── React app (Vercel) ───────┴─────────────────────────┐
  │  search + filters ──► cards ──► board page ──► 3D viewer                │
  │                                               (built from product photos)│
@@ -100,7 +102,7 @@ Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a gener
 `match.ts` groups listings into one board by brand plus a normalised model key. The key handles spacing and naming differences, such as "Counter Balance" vs "Counterbalance Camber". Kids "Grom" versions stay separate from the adult boards. The board's discount compares the best in-stock price with the same season's RRP.
 
 ### 5. Cut-outs and 3D from product photos
-**Cut-outs.** `src/lib/cutout.ts` learns the backdrop colours from the photo's border and flood-fills inward through connected pixels that match them closely. That keeps near-white board graphics intact. If what's left is framed by a flat grey box (a common Burton layout), the box is removed too. Already-transparent PNGs work as-is. The result is trimmed to the board and cached. A photo with no plain backdrop, such as a lifestyle shot, fails the cut-out, and the hover view uses that to pick only product shots.
+**Cut-outs.** `scraper/cutouts.py` runs the BiRefNet segmentation model (via [rembg](https://github.com/danielgatis/rembg)) over every board photo once, and saves a small mask cropped to the board(s) plus a manifest in `public/cutouts/`. Anything enclosed by a board's outline is made solid, so pale boards never come out see-through. The script also records which photos are lifestyle shots (no plain backdrop), close-ups that run off the frame, or boards lying sideways. In the browser, `src/lib/cutout.ts` draws the photo through its mask, and cards pick the first upright, whole-board photo. Photos added since the last mask run fall back to colour-matching the backdrop in the browser.
 
 **3D.** No 3D models are needed. `src/lib/boardArt.ts` runs in the browser:
 1. Loads the product photos from Shopify's CDN, which allows cross-origin image reads.
@@ -117,6 +119,7 @@ Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a gener
 | 3D | three.js, @react-three/fiber, @react-three/drei (lighting, contact shadows, snow sparkles) |
 | Styling | Hand-written CSS with design tokens. Unbounded and Manrope fonts |
 | Scraper | Node 22, TypeScript via `tsx`, native `fetch` |
+| Cut-outs | Python 3.11, rembg + BiRefNet (ONNX, CPU), NumPy, SciPy, Pillow |
 | Data | One static JSON file (`public/data/boards.json`, about 200 KB gzipped) |
 | Hosting | Vercel (static site) |
 | Automation | GitHub Actions, scheduled daily scrape |
@@ -146,7 +149,7 @@ Counts change with every scrape. The live numbers are on the site under **Tracke
 
 ## Getting started
 
-Requires Node 22+.
+Requires Node 22+. Python 3.11 is only needed to regenerate cut-out masks.
 
 ```bash
 git clone git@github.com:joshrkhoo/frostline.git
@@ -164,6 +167,7 @@ npm run dev            # http://localhost:5173, using the committed boards.json
 | `npm run preview` | Serve the production build locally |
 | `npm run scrape` | Download every store's catalogue and rebuild `public/data/boards.json` (~1–2 min) |
 | `npm run scrape:cached` | Rebuild `boards.json` from the last download in `.cache/`, without network calls |
+| `python scraper/cutouts.py` | Make masks for photos that don't have one yet (`pip install -r scraper/requirements.txt` first; about 10s per photo on CPU) |
 
 ### Adding a store
 For a Shopify store, add one line to `scraper/stores.ts`:
@@ -184,11 +188,12 @@ frostline/
 │   ├── classify.ts        is this product a snowboard?
 │   ├── normalize.ts       product → listing (model, sizes, price, specs)
 │   ├── match.ts           listings → boards across stores
-│   └── index.ts           entry point, writes public/data/boards.json
+│   ├── index.ts           entry point, writes public/data/boards.json
+│   └── cutouts.py         photo → background-removal mask (BiRefNet)
 ├── src/
 │   ├── lib/
 │   │   ├── boardArt.ts    photo → board textures and outline
-│   │   ├── cutout.ts      photo → transparent cut-out (backdrop removal)
+│   │   ├── cutout.ts      photo + mask → transparent cut-out
 │   │   ├── filters.ts     search, filters, sorting, facets
 │   │   ├── data.ts        loads boards.json
 │   │   ├── router.ts      hash router (#/board/:id)
@@ -200,6 +205,7 @@ frostline/
 │   │   └── LazyBoardStage.tsx loads three.js on demand
 │   └── components/        Header, Hero, Marketplace, FilterPanel, BoardCard, BoardImage, BoardDetail, StoresSection
 ├── public/data/boards.json    scraped data (updated daily)
+├── public/cutouts/            board masks + index.json (updated daily)
 ├── .github/workflows/scrape.yml
 └── docs/screenshots/
 ```
@@ -207,7 +213,7 @@ frostline/
 ## Deployment
 
 - **Hosting:** Vercel, as a static Vite build. The repo is connected to Vercel, so every push to `main` deploys automatically.
-- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper and commits the updated `boards.json`, and that commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
+- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper, makes masks for any new photos, and commits the updated `boards.json` and `public/cutouts/`, and that commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
 
 ## Pricing APIs
 
