@@ -138,7 +138,7 @@ export function Hero({ data }: { data: MarketData }) {
                   onClick={() => setI(n)}
                   title={`${b.brand} ${b.model}`}
                 >
-                  <BoardImage src={b.images[0]} alt="" width={400} />
+                  <BoardImage src={b.images[0]} altSrcs={b.images.slice(1, 5)} alt="" width={400} />
                 </button>
               ))}
             </div>
