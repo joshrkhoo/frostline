@@ -71,6 +71,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
             view={view}
             onViewChange={setView}
             autoSpin={view === 'free'}
+            cameraZ={3.6}
           />
           <div className="viewer-controls" role="radiogroup" aria-label="Board view">
             {VIEWS.map(([v, label]) => (
