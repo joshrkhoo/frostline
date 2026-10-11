@@ -30,7 +30,11 @@ async function main() {
     STORES.map(async (store) => {
       try {
         const products = await loadStore(store.id, store.domain)
-        const boards = products.filter(isSnowboard).map((p) => normalize(p, store))
+        // Sold-out listings are mostly past seasons' archive pages, so skip them.
+        const boards = products
+          .filter(isSnowboard)
+          .map((p) => normalize(p, store))
+          .filter((l) => l.inStock)
         listings.push(...boards)
         storeStats[store.id] = { products: products.length, boards: boards.length, ok: true }
         console.log(`✓ ${store.name.padEnd(20)} ${String(boards.length).padStart(4)} boards / ${products.length} products`)
