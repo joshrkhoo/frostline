@@ -124,7 +124,7 @@ function detectYear(p: ShopifyProduct, tags: string[]): number | null {
   const fromTitle = p.title.match(/\b(20[1-3]\d)\b/)
   if (fromTitle) return Number(fromTitle[1])
   const years = tags
-    .map((t) => t.match(/^(?:year[:/]|season-)(20\d\d)$/i)?.[1])
+    .map((t) => t.match(/^(?:year[:/]|season-)?(20\d\d)$/i)?.[1])
     .filter(Boolean)
     .map(Number)
   return years.length ? Math.max(...years) : null
@@ -181,6 +181,32 @@ const TERRAIN_MAP: [RegExp, string][] = [
 
 const pick = (value: string, map: [RegExp, string][]) => map.find(([re]) => re.test(value))?.[1]
 
+// Bare tags some stores use (e.g. Melbourne Snowboard Centre: "flat", "twin", "soft").
+const PLAIN_TAGS: Record<string, [keyof Omit<Specs, 'terrain' | 'level'> | 'terrain', string]> = {
+  camber: ['profile', 'Camber'],
+  positive: ['profile', 'Camber'],
+  'hybrid-camber': ['profile', 'Hybrid Camber'],
+  'hybrid-positive': ['profile', 'Hybrid Camber'],
+  'hybrid-rocker': ['profile', 'Hybrid Rocker'],
+  rocker: ['profile', 'Rocker'],
+  flat: ['profile', 'Flat'],
+  twin: ['shape', 'True Twin'],
+  'true-twin': ['shape', 'True Twin'],
+  'directional-twin': ['shape', 'Directional Twin'],
+  directional: ['shape', 'Directional'],
+  soft: ['flex', 'Soft'],
+  'soft-mid': ['flex', 'Soft-Medium'],
+  mid: ['flex', 'Medium'],
+  'mid-stiff': ['flex', 'Medium-Stiff'],
+  stiff: ['flex', 'Stiff'],
+  'all-mountain': ['terrain', 'All Mountain'],
+  park: ['terrain', 'Freestyle'],
+  freestyle: ['terrain', 'Freestyle'],
+  freeride: ['terrain', 'Freeride'],
+  powder: ['terrain', 'Powder'],
+  backcountry: ['terrain', 'Backcountry'],
+}
+
 function specsOf(tags: string[], text: string): Specs {
   const specs: Specs = { terrain: [] }
   const terrain = new Set<string>()
@@ -190,7 +216,11 @@ function specsOf(tags: string[], text: string): Specs {
       ? [tag.split(/[:|~]/)[0], tag.split(/[:|~]/).slice(1).join(' ')]
       : [tag, tag]
     const key = k.toLowerCase()
-    if (/camber/.test(key)) specs.profile ??= pick(v, PROFILE_MAP)
+    const plain = PLAIN_TAGS[tag.trim().toLowerCase()]
+    if (plain) {
+      if (plain[0] === 'terrain') terrain.add(plain[1])
+      else specs[plain[0]] ??= plain[1]
+    } else if (/camber/.test(key)) specs.profile ??= pick(v, PROFILE_MAP)
     else if (/shape/.test(key)) specs.shape ??= pick(v, SHAPE_MAP)
     else if (/flex/.test(key)) specs.flex ??= pick(v, FLEX_MAP)
     else if (/skill|level|ability/.test(key)) specs.level ??= titleCase(v.replace(/[/]/g, ' / '))
@@ -221,7 +251,7 @@ export function normalize(p: ShopifyProduct, store: Store): Listing {
   const tags = tagsOf(p)
   const brand = brandDisplay(p.vendor || p.title.split(' ')[0])
   const model = titleCaseIfShouty(cleanModel(p.title, p.vendor))
-  const genderText = `${p.title} ${p.product_type} ${tags.filter((t) => /gender|womens|mens/i.test(t)).join(' ')}`
+  const genderText = `${p.title} ${p.product_type} ${tags.filter((t) => /gender|womens|mens|kids|boys|girls|youth|junior/i.test(t)).join(' ')}`
   const available = p.variants.filter((v) => v.available)
   const priced = available.length ? available : p.variants
   const price = Math.min(...priced.map((v) => Number(v.price)))
