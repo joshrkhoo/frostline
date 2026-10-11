@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { boardHref } from '../lib/router'
 import { money, sized, storeCount, timeAgo } from '../lib/format'
-import { BoardStage } from '../three/BoardStage'
+import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { MarketData } from '../types'
 import './Hero.css'
 

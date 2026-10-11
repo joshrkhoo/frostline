@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { GENDER_LABEL, money, sized, storeCount } from '../lib/format'
-import { BoardStage } from '../three/BoardStage'
+import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { BoardView } from '../three/BoardModel'
 import type { Board, MarketData } from '../types'
 import { BoardCard } from './BoardCard'
