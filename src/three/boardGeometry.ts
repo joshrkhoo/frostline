@@ -8,9 +8,9 @@ const COLS = 18
 // Proportions roughly match a 155cm board (1 unit ≈ 97cm): ~5cm tip kick.
 const ROCKER_LIFT = 0.05
 const ROCKER_START = 0.8 // fraction of half-length where the tips start lifting
-// Real camber is only 5–8mm; these are ~1.5x that so the profile still reads.
-const CAMBER = 0.011
-const ROCKER = 0.009
+// Real camber is only 5–8mm; these are ~2x that so the profile reads.
+const CAMBER = 0.016
+const ROCKER = 0.013
 
 // Smooth hump that eases to flat at ±width (no kink where it meets the rest).
 const bump = (u: number, width: number) => (Math.abs(u) >= width ? 0 : 0.5 * (1 + Math.cos((Math.PI * u) / width)))
