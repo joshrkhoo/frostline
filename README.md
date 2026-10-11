@@ -54,6 +54,7 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 
 **Board page**
 - 3D viewer: drag to spin with inertia, or snap to **Top / Base / Side**. The board floats above a glowing ice pedestal.
+- The 3D board is shaped by its camber profile (camber, rocker, hybrid camber, hybrid rocker or flat), exaggerated so it's visible from the side.
 - Best price at a glance, with the saving and a link straight to the shop.
 - Every offer from every store, with the cheapest highlighted. Pick a size to see only the shops that have it in stock.
 - Specs (profile, shape, flex, level, terrain, season) merged from all stores' data.
