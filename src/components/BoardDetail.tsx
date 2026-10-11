@@ -73,6 +73,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
             onViewChange={setView}
             autoSpin={view === 'free'}
             cameraZ={3.6}
+            profile={board.specs.profile}
           />
           <div className="viewer-controls" role="radiogroup" aria-label="Board view">
             {VIEWS.map(([v, label]) => (
@@ -82,6 +83,11 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
             ))}
           </div>
           <p className="viewer-hint">Drag to spin · tap a view to snap</p>
+          {board.specs.profile && (
+            <button className="viewer-profile chip" onClick={() => setView('side')} title="See the profile from the side">
+              {board.specs.profile} profile
+            </button>
+          )}
           {board.images.length > 0 && (
             <div className="viewer-photos">
               {board.images.slice(0, 6).map((src) => (
