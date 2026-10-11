@@ -1,138 +1,98 @@
 .card {
-  --rx: 0deg;
-  --ry: 0deg;
-  --gx: 50%;
-  --gy: 30%;
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
-  transform-style: preserve-3d;
   transition: transform 0.25s ease-out, border-color 0.25s, box-shadow 0.25s;
 }
-.card::before {
-  /* Moving specular highlight that follows the cursor. */
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(420px circle at var(--gx) var(--gy), rgba(138, 227, 255, 0.14), transparent 45%);
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-  z-index: 2;
-}
-.card.is-hover {
+.card:hover {
+  transform: translateY(-6px);
   border-color: var(--line-strong);
-  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(138, 227, 255, 0.15), 0 0 40px rgba(59, 164, 255, 0.12);
-}
-.card.is-hover::before {
-  opacity: 1;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(138, 227, 255, 0.15), 0 0 40px rgba(59, 164, 255, 0.12);
 }
 
+/* Dark ice stage, matching the hero pedestal. */
 .card-stage {
   position: relative;
   height: 300px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  /* Pale "ice block" display case: white product-photo backdrops multiply away into it. */
   margin: 8px 8px 0;
   border-radius: 14px;
+  overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(70% 45% at 50% 105%, rgba(59, 164, 255, 0.35), transparent 70%),
-    radial-gradient(80% 60% at 50% 0%, #ffffff, transparent 70%),
-    linear-gradient(180deg, #eef5fc 0%, #d4e4f4 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), inset 0 -30px 60px rgba(59, 164, 255, 0.12);
+    radial-gradient(70% 45% at 50% 108%, rgba(59, 164, 255, 0.32), transparent 70%),
+    radial-gradient(60% 50% at 50% 40%, rgba(138, 227, 255, 0.07), transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0));
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .card-glow {
   position: absolute;
-  width: 60%;
-  height: 60%;
+  inset: 15% 20% 20%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(59, 164, 255, 0.35), transparent 65%);
+  background: radial-gradient(circle, rgba(90, 200, 255, 0.22), transparent 65%);
   filter: blur(24px);
   z-index: -1;
   transition: transform 0.4s, opacity 0.4s;
-  opacity: 0.6;
+  opacity: 0.7;
 }
-.card.is-hover .card-glow {
-  transform: scale(1.25);
+.card:hover .card-glow {
+  transform: scale(1.2);
   opacity: 1;
 }
 
 .card-plinth {
   position: absolute;
+  left: 22%;
+  right: 22%;
   bottom: 16px;
-  width: 56%;
   height: 22px;
   border-radius: 50%;
-  border: 2px solid rgba(59, 164, 255, 0.55);
-  box-shadow: 0 0 22px rgba(59, 164, 255, 0.45), inset 0 0 14px rgba(59, 164, 255, 0.3);
+  border: 2px solid rgba(138, 227, 255, 0.55);
+  box-shadow: 0 0 22px rgba(138, 227, 255, 0.4), inset 0 0 14px rgba(138, 227, 255, 0.25);
 }
 
-.card-flip {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  /* Blend the whole photo stack so white product backdrops vanish into the case. */
-  mix-blend-mode: multiply;
-  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.card.is-hover .card-flip {
-  transform: translateZ(30px) translateY(-6px);
-}
-
-.card-img {
+.card-board {
   position: absolute;
-  inset: 14px 14px 30px;
-  width: calc(100% - 28px);
-  height: calc(100% - 44px);
-  object-fit: contain;
-  transition: opacity 0.45s, transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  inset: 18px 14px 34px;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
-
-.card-img.back {
-  opacity: 0;
-  transform: rotateY(-90deg);
-}
-.card.is-hover .card-img.back {
-  opacity: 1;
-  transform: rotateY(0deg);
-}
-.card.is-hover .card-img.front:has(+ .back) {
-  opacity: 0;
-  transform: rotateY(90deg);
+.card:hover .card-board {
+  transform: translateY(-6px);
 }
 
 .card-noimg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
   font-size: 22px;
-  color: #7f93b3;
+  color: var(--faint);
 }
 
 .card-badge {
   position: absolute;
-  top: 14px;
-  left: 14px;
+  top: 12px;
+  left: 12px;
   z-index: 3;
 }
 
 .card-spin {
   position: absolute;
-  bottom: 14px;
-  right: 14px;
+  bottom: 12px;
+  right: 12px;
   z-index: 3;
   color: var(--ice);
-  background: rgba(6, 10, 19, 0.7);
+  background: rgba(6, 10, 19, 0.75);
   border-color: var(--line-strong);
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.25s, transform 0.25s;
 }
-.card.is-hover .card-spin {
+.card:hover .card-spin {
   opacity: 1;
   transform: none;
 }
@@ -204,6 +164,13 @@
   background: linear-gradient(135deg, #1b2c4d, #10192d);
   border: 2px solid var(--panel-solid);
   box-shadow: 0 0 0 1px var(--line-strong);
+}
+
+@media (hover: none) {
+  .card-spin {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @media (max-width: 560px) {
