@@ -1,8 +1,12 @@
 import { sized } from './format'
 
 /**
- * Removes the plain studio backdrop from a product photo so the board can sit
- * on the site's own dark stage.
+ * Removes the studio backdrop from a product photo so the board can sit on
+ * the site's own dark stage.
+ *
+ * Most photos have a mask pre-computed by a segmentation model in the scraper
+ * (scraper/cutouts.py): the photo is simply drawn through it. Photos newer
+ * than the last mask run fall back to the colour-matching below.
  *
  * Store photos use white, light grey, or a grey box inside white padding, and
  * some PNGs are already transparent. We learn the backdrop colours from the
@@ -24,10 +28,92 @@ type RGB = [number, number, number]
 
 const cache = new Map<string, Promise<string | null>>()
 
+interface MaskEntry {
+  /** Mask file id in /cutouts. */
+  k?: string
+  /** Crop box as fractions of the photo: x0, y0, x1, y1. */
+  b?: [number, number, number, number]
+  /** The board runs off the edge of the photo. */
+  c?: 1
+  /** The board lies sideways or is shot at an angle. */
+  w?: 1
+  /** Why no mask was made: a scene rather than a product shot, etc. */
+  skip?: string
+}
+
+let manifest: Promise<Record<string, MaskEntry>> | null = null
+function masks() {
+  manifest ??= fetch('/cutouts/index.json')
+    .then((r) => (r.ok ? r.json() : {}))
+    .catch(() => ({}))
+  return manifest
+}
+
 export function cutout(src: string, width = 1200): Promise<string | null> {
   const key = `${src}@${width}`
-  if (!cache.has(key)) cache.set(key, build(sized(src, width)).catch(() => null))
+  if (!cache.has(key)) cache.set(key, build(src, width).catch(() => null))
   return cache.get(key)!
+}
+
+/** Whether a photo shows the whole board upright (unknown photos are given the benefit of the doubt). */
+export async function isFullShot(src: string): Promise<boolean> {
+  const e = (await masks())[src]
+  return !e || (!!e.k && !e.c && !e.w)
+}
+
+/**
+ * The first of several photos that cuts out cleanly with the whole board
+ * upright in frame, else the first that cuts out at all, else the first photo.
+ */
+export async function bestCutout(srcs: string[], width = 1200): Promise<{ src: string; url: string | null }> {
+  for (const src of srcs) {
+    if (!(await isFullShot(src))) continue
+    const url = await cutout(src, width)
+    if (url) return { src, url }
+  }
+  for (const src of srcs) {
+    const url = await cutout(src, width)
+    if (url) return { src, url }
+  }
+  return { src: srcs[0], url: null }
+}
+
+async function build(src: string, width: number): Promise<string | null> {
+  const e = (await masks())[src]
+  if (e?.k && e.b) return fromMask(sized(src, width), `/cutouts/${e.k}.png`, e.b)
+  if (e?.skip && e.skip !== 'fetch') return null
+  return fromColours(sized(src, width))
+}
+
+async function fromMask(url: string, maskUrl: string, [x0, y0, x1, y1]: [number, number, number, number]) {
+  const [img, mask] = await Promise.all([loadImage(url), loadImage(maskUrl)])
+  const sx = Math.round(x0 * img.naturalWidth)
+  const sy = Math.round(y0 * img.naturalHeight)
+  const sw = Math.max(1, Math.round((x1 - x0) * img.naturalWidth))
+  const sh = Math.max(1, Math.round((y1 - y0) * img.naturalHeight))
+  const cut = document.createElement('canvas')
+  cut.width = sw
+  cut.height = sh
+  const ctx = cut.getContext('2d')!
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
+  ctx.globalCompositeOperation = 'destination-in'
+  ctx.drawImage(mask, 0, 0, sw, sh)
+  if (sw <= sh * 1.6) return toUrl(cut)
+  // A board photographed lying down: stand it up like the others.
+  const up = document.createElement('canvas')
+  up.width = sh
+  up.height = sw
+  const uctx = up.getContext('2d')!
+  uctx.translate(sh, 0)
+  uctx.rotate(Math.PI / 2)
+  uctx.drawImage(cut, 0, 0)
+  return toUrl(up)
+}
+
+async function toUrl(canvas: HTMLCanvasElement) {
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/webp', 0.92))
+  return blob ? URL.createObjectURL(blob) : null
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -54,7 +140,7 @@ function dominant(colours: RGB[], minShare: number): RGB[] {
   return groups.filter((g) => g.n >= colours.length * minShare).map((g) => g.c)
 }
 
-async function build(url: string): Promise<string | null> {
+async function fromColours(url: string): Promise<string | null> {
   const img = await loadImage(url)
   const w = img.naturalWidth
   const h = img.naturalHeight
@@ -301,6 +387,5 @@ async function build(url: string): Promise<string | null> {
   out.width = x1 - x0 + 1
   out.height = y1 - y0 + 1
   out.getContext('2d')!.drawImage(canvas, x0, y0, out.width, out.height, 0, 0, out.width, out.height)
-  const blob = await new Promise<Blob | null>((r) => out.toBlob(r, 'image/webp', 0.9))
-  return blob ? URL.createObjectURL(blob) : null
+  return toUrl(out)
 }
