@@ -1,3 +1,4 @@
+import { modelMask, photoKind } from './cutout'
 import { sized } from './format'
 
 /**
@@ -74,8 +75,57 @@ function maskOf(d: Uint8ClampedArray, w: number, h: number): Uint8Array {
   return mask
 }
 
-/** Finds upright board shapes, left to right. */
-function findBoards(mask: Uint8Array, w: number, h: number): Segment[] {
+/**
+ * Finds upright board shapes in a model mask, left to right, as separate connected shapes so
+ * boards photographed close together aren't merged. Each board's pixels are
+ * marked in `mask` with its own label (2, 3, …).
+ */
+function findBoards(mask: Uint8Array, w: number, h: number): (Segment & { label: number })[] {
+  const boards: (Segment & { label: number })[] = []
+  const stack = new Int32Array(w * h)
+  let label = 1
+  for (let start = 0; start < w * h; start++) {
+    if (mask[start] !== 1) continue
+    label++
+    let top = 0
+    let n = 0
+    let x0 = w
+    let x1 = -1
+    let y0 = h
+    let y1 = -1
+    mask[start] = label
+    stack[top++] = start
+    while (top > 0) {
+      const p = stack[--top]
+      n++
+      const x = p % w
+      const y = (p - x) / w
+      if (x < x0) x0 = x
+      if (x > x1) x1 = x
+      if (y < y0) y0 = y
+      if (y > y1) y1 = y
+      const visit = (q: number) => {
+        if (mask[q] === 1) {
+          mask[q] = label
+          stack[top++] = q
+        }
+      }
+      if (x > 0) visit(p - 1)
+      if (x < w - 1) visit(p + 1)
+      if (y > 0) visit(p - w)
+      if (y < h - 1) visit(p + w)
+    }
+    const bw = x1 - x0 + 1
+    const bh = y1 - y0 + 1
+    const ratio = bw / bh
+    // Tall, narrow, and mostly solid: an upright board, not a logo or a pair.
+    if (bh > h * 0.45 && ratio > 0.1 && ratio < 0.5 && n > bw * bh * 0.5) boards.push({ x0, x1, y0, y1, label })
+  }
+  return boards.sort((a, b) => a.x0 - b.x0)
+}
+
+/** Finds upright boards by their columns, for the noisier colour-based mask. */
+function findBoardsByColumns(mask: Uint8Array, w: number, h: number): (Segment & { label: number })[] {
   const cols = new Uint32Array(w)
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) cols[x] += mask[y * w + x]
 
@@ -99,7 +149,7 @@ function findBoards(mask: Uint8Array, w: number, h: number): Segment[] {
     }
   }
 
-  const boards: Segment[] = []
+  const boards: (Segment & { label: number })[] = []
   for (const [x0, x1] of runs) {
     let y0 = -1
     let y1 = -1
@@ -114,10 +164,11 @@ function findBoards(mask: Uint8Array, w: number, h: number): Segment[] {
     const bw = x1 - x0 + 1
     const bh = y1 - y0 + 1
     const ratio = bw / bh
-    if (y0 >= 0 && bh > h * 0.45 && ratio > 0.1 && ratio < 0.5) boards.push({ x0, x1, y0, y1 })
+    if (y0 >= 0 && bh > h * 0.45 && ratio > 0.1 && ratio < 0.5) boards.push({ x0, x1, y0, y1, label: 1 })
   }
   return boards
 }
+
 
 function smooth(edges: Float32Array, rows: number, radius = 3): Float32Array {
   const out = new Float32Array(edges.length)
@@ -138,7 +189,7 @@ function smooth(edges: Float32Array, rows: number, radius = 3): Float32Array {
 }
 
 /** Crops one board out of the photo and records its outline. */
-function cropFace(img: HTMLImageElement, src: ImageData, mask: Uint8Array, seg: Segment): BoardFace {
+function cropFace(img: HTMLImageElement, src: ImageData, mask: Uint8Array, seg: Segment & { label: number }): BoardFace {
   const w = src.width
   const cw = seg.x1 - seg.x0 + 1
   const ch = seg.y1 - seg.y0 + 1
@@ -152,7 +203,7 @@ function cropFace(img: HTMLImageElement, src: ImageData, mask: Uint8Array, seg: 
     let l = -1
     let rr = -1
     for (let x = seg.x0; x <= seg.x1; x++) {
-      if (mask[y * w + x]) {
+      if (mask[y * w + x] === seg.label) {
         if (l < 0) l = x
         rr = x
       }
@@ -186,12 +237,28 @@ function cropFace(img: HTMLImageElement, src: ImageData, mask: Uint8Array, seg: 
       d[to + 3] = 255
     }
   }
+  // With a model mask, gaps inside the outline (a swallowtail's notch) are
+  // cut out rather than showing the backdrop.
+  if (seg.label > 1) {
+    for (let y = 0; y < outH; y++) {
+      const sy = seg.y0 + Math.min(ch - 1, Math.floor((y / outH) * ch))
+      for (let x = 0; x < outW; x++) {
+        const sx2 = seg.x0 + Math.min(cw - 1, Math.floor((x / outW) * cw))
+        const r = sy - seg.y0
+        const inSpan = sx2 >= seg.x0 + edges[r * 2] * cw && sx2 < seg.x0 + edges[r * 2 + 1] * cw
+        if (inSpan && mask[sy * w + sx2] !== seg.label) d[(y * outW + x) * 4 + 3] = 0
+      }
+    }
+  }
   ctx.putImageData(px, 0, 0)
 
   return { canvas, edges: smooth(edges, ch), rows: ch, aspect: cw / ch }
 }
 
 async function facesFrom(src: string): Promise<BoardFace[]> {
+  // Lifestyle shots, close-ups and sideways boards can't give a clean face.
+  const kind = await photoKind(src)
+  if (kind === 'scene' || kind === 'partial') return []
   const img = await loadImage(src)
   const w = img.naturalWidth
   const h = img.naturalHeight
@@ -201,8 +268,10 @@ async function facesFrom(src: string): Promise<BoardFace[]> {
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.drawImage(img, 0, 0)
   const data = ctx.getImageData(0, 0, w, h) // throws if the CDN doesn't allow CORS
-  const mask = maskOf(data.data, w, h)
-  return findBoards(mask, w, h)
+  // Prefer the segmentation model's mask; fall back to colour distance.
+  const model = await modelMask(src, w, h)
+  const mask = model ?? maskOf(data.data, w, h)
+  return (model ? findBoards(mask, w, h) : findBoardsByColumns(mask, w, h))
     .slice(0, 2)
     .map((seg) => cropFace(img, data, mask, seg))
 }

@@ -78,6 +78,36 @@ export async function bestCutout(srcs: string[], width = 1200): Promise<{ src: s
   return { src: srcs[0], url: null }
 }
 
+export type PhotoKind = 'unknown' | 'scene' | 'partial' | 'full'
+
+/** What a photo shows, per the mask manifest. */
+export async function photoKind(src: string): Promise<PhotoKind> {
+  const e = (await masks())[src]
+  if (!e || e.skip === 'fetch') return 'unknown'
+  if (!e.k) return 'scene'
+  return e.c || e.w ? 'partial' : 'full'
+}
+
+/**
+ * The model's board mask for a photo, scaled to w×h (1 = board), or null if
+ * there's no mask for it.
+ */
+export async function modelMask(src: string, w: number, h: number): Promise<Uint8Array | null> {
+  const e = (await masks())[src]
+  if (!e?.k || !e.b) return null
+  const img = await loadImage(`/cutouts/${e.k}.png`)
+  const [x0, y0, x1, y1] = e.b
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.drawImage(img, x0 * w, y0 * h, (x1 - x0) * w, (y1 - y0) * h)
+  const d = ctx.getImageData(0, 0, w, h).data
+  const out = new Uint8Array(w * h)
+  for (let p = 0; p < w * h; p++) out[p] = d[p * 4 + 3] > 128 ? 1 : 0
+  return out
+}
+
 async function build(src: string, width: number): Promise<string | null> {
   const e = (await masks())[src]
   if (e?.k && e.b) return fromMask(sized(src, width), `/cutouts/${e.k}.png`, e.b)
