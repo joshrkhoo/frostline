@@ -74,11 +74,11 @@ export function brandDisplay(vendor: string): string {
   return BRAND_DISPLAY[k] ?? BRAND_DISPLAY[brandKey(vendor)] ?? titleCase(brandKey(vendor) || vendor)
 }
 
-const GENDER_WORDS = /\b(men'?s|mens|male|women'?s|womens|wmns|female|w's|kids'?|youth|boys'?|girls'?|unisex|junior|jnr|grom)\b/gi
+const GENDER_WORDS = /\b(men'?s|mens|male|women'?s|womens|wmns|female|w's|kids'?|youth|boys'?|girls'?|unisex|junior|jnr)\b/gi
 
 function detectGender(text: string): Gender {
   const t = text.toLowerCase()
-  if (/\b(kids'?|youth|boys'?|girls'?|junior|jnr)\b/.test(t)) return 'kids'
+  if (/\b(kids'?|youth|boys'?|girls'?|junior|jnr|grom)\b/.test(t)) return 'kids'
   if (/\b(women'?s|womens|wmns|female|w's|gender_2~female)\b/.test(t) && !/\b(men'?s|mens|male)\b/.test(t)) return 'womens'
   if (/\b(men'?s|mens|male)\b/.test(t) && !/\b(women'?s|womens|female)\b/.test(t)) return 'mens'
   return 'unisex'
