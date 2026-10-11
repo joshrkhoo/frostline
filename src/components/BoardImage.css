@@ -48,3 +48,22 @@
     opacity: 0.4;
   }
 }
+
+/* Hover view: crossfade to another product shot of the same board. */
+.board-img .back {
+  position: absolute;
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.board-img .front {
+  transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.board-img.flipped .front {
+  opacity: 0;
+  transform: scale(0.96);
+}
+.board-img.flipped .back {
+  opacity: 1;
+  transform: none;
+}

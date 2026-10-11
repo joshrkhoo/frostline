@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { boardHref } from '../lib/router'
 import { GENDER_LABEL, money, storeCount } from '../lib/format'
 import type { Board } from '../types'
@@ -9,18 +10,33 @@ interface Props {
   storeNames: Record<string, string>
 }
 
-/** Marketplace card: the cut-out board floats on an ice plinth; hover lifts it. */
+/**
+ * Marketplace card: the cut-out board floats on an ice plinth. Hover lifts the
+ * card and switches to another product shot of the board, if there is one.
+ */
 export function BoardCard({ board, storeNames }: Props) {
+  const [hover, setHover] = useState(false)
   const stores = storeCount(board.listings)
   const storeList = [...new Set(board.listings.map((l) => l.storeId))]
 
   return (
-    <a href={boardHref(board.id)} className="card glass">
+    <a
+      href={boardHref(board.id)}
+      className="card glass"
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={() => setHover(false)}
+    >
       <div className="card-stage">
         <div className="card-glow" />
         <div className="card-plinth" />
         {board.images[0] ? (
-          <BoardImage className="card-board" src={board.images[0]} alt={`${board.brand} ${board.model}`} />
+          <BoardImage
+            className="card-board"
+            src={board.images[0]}
+            alt={`${board.brand} ${board.model}`}
+            altSrcs={board.images.slice(1, 5)}
+            showAlt={hover}
+          />
         ) : (
           <div className="card-noimg display">{board.brand}</div>
         )}
