@@ -20,6 +20,8 @@ interface Props {
   onViewChange?: (v: BoardView) => void
   autoSpin?: boolean
   onReady?: (art: BoardArt) => void
+  /** Camber profile ("Camber", "Hybrid Rocker"…) shaped into the mesh. */
+  profile?: string
 }
 
 function toTexture(canvas: HTMLCanvasElement, maxAniso: number) {
@@ -34,7 +36,7 @@ function toTexture(canvas: HTMLCanvasElement, maxAniso: number) {
  * The interactive board: drag to spin (with inertia), or snap to a preset
  * view. It bobs gently while idle, like an item on a display pedestal.
  */
-export function BoardModel({ images, brand, model, view, onViewChange, autoSpin = false, onReady }: Props) {
+export function BoardModel({ images, brand, model, view, onViewChange, autoSpin = false, onReady, profile }: Props) {
   const [art, setArt] = useState<BoardArt | null>(null)
   const group = useRef<THREE.Group>(null)
   const gl = useThree((s) => s.gl)
@@ -63,8 +65,8 @@ export function BoardModel({ images, brand, model, view, onViewChange, autoSpin 
       ? new THREE.MeshPhysicalMaterial({ map: baseTex, roughness: 0.22, clearcoat: 0.6, clearcoatRoughness: 0.1 })
       : new THREE.MeshPhysicalMaterial({ color: '#141b2b', roughness: 0.25, clearcoat: 0.8, sheen: 0.4, sheenColor: '#8ae3ff' })
     const side = new THREE.MeshStandardMaterial({ color: '#c9d4e3', metalness: 0.85, roughness: 0.28 })
-    return { geometry: buildBoardGeometry(art.top, art.base), materials: [top, base, side] }
-  }, [art, maxAniso])
+    return { geometry: buildBoardGeometry(art.top, art.base, profile), materials: [top, base, side] }
+  }, [art, maxAniso, profile])
 
   useEffect(
     () => () => {
@@ -154,8 +156,7 @@ export function BoardModel({ images, brand, model, view, onViewChange, autoSpin 
   if (!geometry || !materials) return <LoadingBoard />
   return (
     <group ref={group}>
-      {/* Lean the board back slightly so the rocker reads in 3D. */}
-      <mesh geometry={geometry} material={materials} castShadow rotation={[-0.08, 0, 0]} />
+      <mesh geometry={geometry} material={materials} castShadow />
     </group>
   )
 }

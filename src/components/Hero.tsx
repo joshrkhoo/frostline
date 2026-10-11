@@ -98,6 +98,7 @@ export function Hero({ data }: { data: MarketData }) {
             model={board.model}
             autoSpin
             cameraZ={3.5}
+            profile={board.specs.profile}
           />
           <div className="hero-drag chip">⟲ Drag to spin</div>
 

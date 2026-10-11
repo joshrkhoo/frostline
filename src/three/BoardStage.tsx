@@ -15,6 +15,8 @@ interface Props {
   pedestal?: boolean
   /** Camera distance; larger shows more space around the board. */
   cameraZ?: number
+  /** Camber profile to shape the board with. */
+  profile?: string
 }
 
 /** Glowing ice pedestal the board floats above (Frozeverse-style item stand). */
@@ -47,6 +49,7 @@ export function BoardStage({
   className,
   pedestal = true,
   cameraZ = 3.3,
+  profile,
 }: Props) {
   return (
     <div className={className}>
@@ -74,6 +77,7 @@ export function BoardStage({
             view={view}
             onViewChange={onViewChange}
             autoSpin={autoSpin}
+            profile={profile}
           />
         </Suspense>
         {pedestal && <Pedestal />}
