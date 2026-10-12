@@ -50,6 +50,7 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 - Every board photo has its studio backdrop removed by an AI segmentation model (BiRefNet), so all boards float on the same dark ice stage instead of white or grey boxes. This includes white boards shot on white. Cards always show an upright photo of the whole board, lift on hover, and switch to another product shot of the board (base or another angle). Lifestyle photos and close-ups are skipped automatically.
 
 **Featured deals**
+- A full-bleed snowboarding photo sits behind the headline, colour-graded into the site's ice palette with a slow drift.
 - The hero shows today's biggest markdowns on a 3D pedestal, with the shop offering the deal and the sizes in stock at that price.
 
 **Board page**
@@ -85,7 +86,7 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 ```
 
 ### 1. Scraping
-Every tracked shop runs on Shopify, which exposes the catalogue publicly at `/products.json`. The scraper pages through each one with a small delay between requests and backs off when the shop rate-limits it. It caches the raw download in `.cache/` so you can iterate without hitting the shops again.
+Every tracked shop runs on Shopify, which exposes the catalogue publicly at `/products.json`. The scraper pages through each one with a small delay between requests, and backs off exponentially and retries when the shop answers 429 or a 5xx. If a shop still fails, its listings from the previous `boards.json` are kept, so one flaky store never empties out of the site for a day. It caches the raw download in `.cache/` so you can iterate without hitting the shops again.
 
 ### 2. Classifying
 Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a generic `Snowboard` type covering every snow product, a `Boards` type plus a `snowboard` tag, or no type at all with a `JUNIOR SNOWBOARDS` tag. `classify.ts` handles all of these and drops boots, bindings, bags, outerwear and accessories.
@@ -102,7 +103,7 @@ Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a gener
 `match.ts` groups listings into one board by brand plus a normalised model key. The key handles spacing and naming differences, such as "Counter Balance" vs "Counterbalance Camber". Kids "Grom" versions stay separate from the adult boards. The board's discount compares the best in-stock price with the same season's RRP.
 
 ### 5. Cut-outs and 3D from product photos
-**Cut-outs.** `scraper/cutouts.py` runs the BiRefNet segmentation model (via [rembg](https://github.com/danielgatis/rembg)) over every board photo once, and saves a small mask cropped to the board(s) plus a manifest in `public/cutouts/`. Anything enclosed by a board's outline is made solid, so pale boards never come out see-through. The script also records which photos are lifestyle shots (no plain backdrop), close-ups that run off the frame, or boards lying sideways. In the browser, `src/lib/cutout.ts` draws the photo through its mask, and cards pick the first upright, whole-board photo. Photos added since the last mask run fall back to colour-matching the backdrop in the browser.
+**Cut-outs.** `scraper/cutouts.py` runs the BiRefNet segmentation model (via [rembg](https://github.com/danielgatis/rembg)) over every board photo once, and saves a small mask cropped to the board(s) plus a manifest in `public/cutouts/`. Anything enclosed by a board's outline is made solid, so pale boards never come out see-through. BiRefNet also tends to treat a studio drop shadow as part of the board, which shows as a pale strip down one edge of a dark board. A conservative trim cuts it off: only on light, neutral backdrops, and only for a smooth grey band that fades away from the board and runs a consistent width along at least a quarter of its length. Saved masks get the trim without rerunning the model (tracked by a `t` version in the manifest). The script also records which photos are lifestyle shots (no plain backdrop), close-ups that run off the frame, or boards lying sideways. In the browser, `src/lib/cutout.ts` draws the photo through its mask, and cards pick the first upright, whole-board photo. Photos added since the last mask run fall back to colour-matching the backdrop in the browser.
 
 **3D.** No 3D models are needed. `src/lib/boardArt.ts` runs in the browser:
 1. Loads the product photos from Shopify's CDN, which allows cross-origin image reads.
@@ -130,14 +131,14 @@ There's no backend or database. The site is plain static files, and three.js is 
 
 | Store | Website | Location | Boards in stock |
 | --- | --- | --- | --- |
-| Auski | [auski.com.au](https://auski.com.au) | Melbourne, VIC | ~140 |
-| Melbourne Snowboard Centre | [melbournesnowboard.com.au](https://www.melbournesnowboard.com.au) | Preston, VIC | ~190 |
-| Balmoral Boards | [balmoralboards.com.au](https://balmoralboards.com.au) | Sydney, NSW | ~120 |
-| Rhythm Snowsports | [rhythmsnowsports.com.au](https://rhythmsnowsports.com.au) | Sydney, NSW + resorts | ~80 |
-| Twelve Board Store | [twelveboardstore.com.au](https://twelveboardstore.com.au) | Melbourne, VIC | ~80 |
-| Paul Reader | [paulreader.com.au](https://paulreader.com.au) | Sydney, NSW | ~25 |
+| Balmoral Boards | [balmoralboards.com.au](https://balmoralboards.com.au) | Sydney, NSW | ~185 |
+| Auski | [auski.com.au](https://auski.com.au) | Melbourne, VIC | ~160 |
+| Rhythm Snowsports | [rhythmsnowsports.com.au](https://rhythmsnowsports.com.au) | Sydney, NSW + resorts | ~145 |
+| Twelve Board Store | [twelveboardstore.com.au](https://twelveboardstore.com.au) | Melbourne, VIC | ~115 |
+| Melbourne Snowboard Centre | [melbournesnowboard.com.au](https://www.melbournesnowboard.com.au) | Preston, VIC | ~90 |
+| Paul Reader | [paulreader.com.au](https://paulreader.com.au) | Sydney, NSW | ~30 |
 | Snow Monkey | [snowmonkey.com.au](https://snowmonkey.com.au) | Melbourne, VIC | ~25 |
-| Larry Adler | [larryadler.com.au](https://larryadler.com.au) | Sydney, NSW | ~15 |
+| Larry Adler | [larryadler.com.au](https://larryadler.com.au) | Sydney, NSW | ~12 |
 | Bumps | [bumps.com.au](https://bumps.com.au) | Elsternwick, VIC | ~1 (little snow stock online) |
 
 Counts change with every scrape. The live numbers are on the site under **Tracked stores**.
@@ -167,7 +168,7 @@ npm run dev            # http://localhost:5173, using the committed boards.json
 | `npm run preview` | Serve the production build locally |
 | `npm run scrape` | Download every store's catalogue and rebuild `public/data/boards.json` (~1–2 min) |
 | `npm run scrape:cached` | Rebuild `boards.json` from the last download in `.cache/`, without network calls |
-| `python scraper/cutouts.py` | Make masks for photos that don't have one yet (`pip install -r scraper/requirements.txt` first; about 10s per photo on CPU) |
+| `python scraper/cutouts.py` | Make masks for photos that don't have one yet, and re-trim older masks (`pip install -r scraper/requirements.txt` first; about 10s per photo on CPU) |
 
 ### Adding a store
 For a Shopify store, add one line to `scraper/stores.ts`:
@@ -213,7 +214,7 @@ frostline/
 ## Deployment
 
 - **Hosting:** Vercel, as a static Vite build. The repo is connected to Vercel, so every push to `main` deploys automatically.
-- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper, makes masks for any new photos, and commits the updated `boards.json` and `public/cutouts/`, and that commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
+- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper, makes masks for any new photos, and commits the updated `boards.json` and `public/cutouts/`. The run is long, so the commit is rebased onto `main` before pushing in case `main` moved meanwhile. That commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
 
 ## Pricing APIs
 
