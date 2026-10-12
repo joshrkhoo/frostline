@@ -41,9 +41,10 @@ SOURCE_WIDTH = 1200  # photo width the mask is computed from
 MASK_MAX = 1000  # longest side of the saved mask
 EDGE = 2  # px band at the outline that keeps the model's soft alpha
 OFF_FRAME = 0.12  # share of a photo's side the board can cover before it counts as cut off
-TRIM = 1  # version of the drop-shadow trim; masks made before it get re-trimmed
+TRIM = 2  # version of the clean-up (outline seal, shadow trim); older masks get redone
 SHADOW_BAND = 0.025  # widest drop shadow trimmed, as a share of the photo's width
 SHADOW_RUN = 0.25  # a shadow must run along this share of the board's length
+SEAL_SOLIDITY = 0.75  # how convex the board a sealed pocket completes must be
 
 
 def key(url: str) -> str:
@@ -224,6 +225,49 @@ def trim_shadow(rgb: np.ndarray, solid: np.ndarray) -> np.ndarray:
     return out & ~(near_edge & ~opened)
 
 
+def seal_outline(rgb: np.ndarray, solid: np.ndarray) -> np.ndarray:
+    """Fill white boards the model only caught the outline of.
+
+    A white board on a white backdrop often comes out as its thin drawn
+    outline plus part of the inside, with a gap the hole fill can't close.
+    In the photo itself the outline is unbroken, so backdrop-coloured pixels
+    that can't be reached from the photo's border are enclosed by a board.
+    """
+    lum = rgb.astype(np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
+    chroma = rgb.max(2).astype(int) - rgb.min(2).astype(int)
+    border = np.concatenate([lum[0], lum[-1], lum[:, 0], lum[:, -1]])
+    backdrop = float(np.median(border))
+    if backdrop < 200 or np.median(np.concatenate([chroma[0], chroma[-1], chroma[:, 0], chroma[:, -1]])) > 10:
+        return solid
+    light = (np.abs(lum - backdrop) <= 10) & (chroma <= 10)
+    lab, n = ndimage.label(light)
+    outside = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
+    enclosed = light & ~np.isin(lab, outside) & ~solid
+    if not enclosed.any():
+        return solid
+    # Only pockets the mask already borders, and big enough to be a board.
+    lab, n = ndimage.label(enclosed)
+    near = ndimage.binary_dilation(solid, iterations=2)
+    touch = np.unique(lab[near & enclosed])
+    sizes = ndimage.sum(enclosed, lab, range(1, n + 1))
+    # A board is a smooth, near-convex shape; snow and scenery in a
+    # lifestyle shot come out ragged.
+    keep = []
+    for i in touch:
+        if not i or sizes[i - 1] < solid.sum() * 0.02:
+            continue
+        # Judge the whole board it would complete: the model's piece of it,
+        # the pocket, and anything they close off between them.
+        board = ndimage.binary_fill_holes(solid | (lab == i))
+        parts, _ = ndimage.label(board)
+        board = parts == parts[lab == i][0]
+        if board.sum() / hull_mask(board).sum() >= SEAL_SOLIDITY:
+            keep.append(i)
+    if not keep:
+        return solid
+    return ndimage.binary_fill_holes(solid | np.isin(lab, keep))
+
+
 def has_alpha(im: Image.Image) -> bool:
     """Photos already cut out by the store: their transparency is the shape."""
     return int(np.asarray(im)[:, :, 3].min()) < 250
@@ -242,7 +286,7 @@ def make_mask(session, im: Image.Image) -> np.ndarray:
     solid, _ = mend(solid)
     filled = ndimage.binary_fill_holes(solid)
     if not has_alpha(im):
-        filled = trim_shadow(np.asarray(rgb), filled)
+        filled = trim_shadow(np.asarray(rgb), seal_outline(np.asarray(rgb), filled))
     # Drop specks well away from the board(s).
     lab, n = ndimage.label(filled)
     if n > 1:
@@ -262,7 +306,7 @@ def process(session, url: str, im: Image.Image | None) -> dict:
 
 
 def retrim(url: str, entry: dict, im: Image.Image | None) -> dict:
-    """Applies the shadow trim to a mask made before it, without the model."""
+    """Applies the clean-up to a mask made before it, without the model."""
     if im is None:
         return entry
     if has_alpha(im):
@@ -273,10 +317,13 @@ def retrim(url: str, entry: dict, im: Image.Image | None) -> dict:
     mask = np.zeros((h, w), np.uint8)
     mask[y0:y1, x0:x1] = np.asarray(saved)
     solid = mask > 128
-    trimmed = trim_shadow(np.asarray(im.convert('RGB')), solid)
-    if (solid & ~trimmed).sum() == 0:
+    rgb = np.asarray(im.convert('RGB'))
+    sealed = seal_outline(rgb, solid)
+    fixed = trim_shadow(rgb, sealed)
+    if (fixed != solid).sum() == 0:
         return {**entry, 't': TRIM}
-    mask[solid & ~trimmed] = 0
+    mask[fixed & ~solid] = 255
+    mask[solid & ~fixed] = 0
     out = save_mask(url, mask)
     return {**out, 'm': entry.get('m')}
 
@@ -331,7 +378,7 @@ def main() -> None:
     todo = [u for u in urls if stale(u)]
     if limit:
         todo = todo[:limit]
-    # Masks from before the shadow trim only need the trim, not the model.
+    # Masks from before the latest clean-up only need the clean-up, not the model.
     untrimmed = [u for u in urls if u not in todo and 'k' in manifest.get(u, {}) and manifest[u].get('t') != TRIM]
     print(f'{len(urls)} photos, {len(todo)} to process, {len(untrimmed)} to re-trim')
 
