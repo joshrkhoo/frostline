@@ -237,7 +237,8 @@ There's no snowboard-specific pricing API, and no Australian one either. The opt
 
 ## Credits
 
-- Visual direction inspired by [Frozeverse – in-game NFT Marketplace](https://dribbble.com/shots/19106417-Frozeverse-in-game-NFT-Marketplace) by Phenomenon Studio.
+- Visual direction inspired by [Frozeverse – in-game NFT Marketplace](https://dribbble.com/shots/19106417-Frozeverse-in-game-NFT-Marketplace) by Phenomenon Studio; the photo hero takes after [STRYDE – Snowboard Website E-Commerce](https://dribbble.com/shots/27469068-STRYDE-Snowboard-Website-E-Commerce) by Hatypo Studio.
+- Hero photo: "Ebbetts Pass Scenic Byway – Carving through Powder", U.S. National Archives (public domain), via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Ebbetts_Pass_Scenic_Byway_-_Carving_through_Powder_-_NARA_-_7718123.jpg).
 - Board photos, prices and stock belong to the retailers listed above. Frostline links to their stores for every purchase.
 
 > Prices and stock can change at any time. Always check the retailer's site before buying.
