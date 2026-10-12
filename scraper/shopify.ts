@@ -32,8 +32,9 @@ async function fetchPage(domain: string, page: number, attempt = 0): Promise<Sho
   const res = await fetch(`https://${domain}/products.json?limit=${PAGE_SIZE}&page=${page}`, {
     headers: { 'user-agent': UA, accept: 'application/json' },
   })
-  if (res.status === 429 && attempt < 4) {
-    await sleep(2000 * (attempt + 1))
+  // Rate limits show up as 429 or a 503 from Shopify's edge; back off and retry.
+  if ((res.status === 429 || res.status >= 500) && attempt < 5) {
+    await sleep(3000 * 2 ** attempt)
     return fetchPage(domain, page, attempt + 1)
   }
   if (!res.ok) throw new Error(`${domain} page ${page}: HTTP ${res.status}`)
