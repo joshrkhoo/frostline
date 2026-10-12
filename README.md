@@ -15,7 +15,7 @@ Find a board, spin it in 3D, and see which shop sells it for the least.
 ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088ff?logo=githubactions&logoColor=white)
 
-<img src="docs/screenshots/spin.gif" alt="A CAPiTA D.O.A. snowboard spinning in the 3D viewer" width="300" />
+<img src="docs/screenshots/spin.gif" alt="A Burton Family Tree 3D Channel Surfer spinning in the 3D viewer" width="300" />
 
 </div>
 
@@ -35,7 +35,7 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 
 | Home | Marketplace |
 | --- | --- |
-| ![Home page with featured deal on a 3D pedestal](docs/screenshots/home.jpg) | ![Marketplace grid with filters](docs/screenshots/marketplace.jpg) |
+| ![Home page with featured deal on a 3D pedestal](docs/screenshots/home.jpg) | ![Marketplace grid searching for Burton, with filters](docs/screenshots/marketplace.jpg) |
 
 | Board page |
 | --- |
