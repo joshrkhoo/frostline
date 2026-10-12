@@ -256,10 +256,13 @@
   .hero-photo {
     object-position: 38% 50%;
   }
+  .hero-stage {
+    bottom: 220px;
+  }
   .hero-picker {
     flex-direction: row;
     top: auto;
-    bottom: 120px;
+    bottom: 172px;
     right: 50%;
     transform: translateX(50%);
   }
