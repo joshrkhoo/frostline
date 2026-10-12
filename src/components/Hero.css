@@ -1,17 +1,66 @@
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 40px 0 30px;
+  /* Runs up under the glass header so the photo fills the top of the page. */
+  margin-top: -72px;
+  padding: 112px 0 40px;
 }
 
-.hero-mountains {
+/* Full-bleed action photo, graded into the dark ice palette. */
+.hero-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Fade out at the bottom so the photo melts into the page. */
+  mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+}
+.hero-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 60% 45%;
+  animation: hero-drift 28s ease-in-out infinite alternate;
+}
+@keyframes hero-drift {
+  from {
+    /* Mirrored so the rider carves between the copy and the board. */
+    transform: scaleX(-1) scale(1.04);
+  }
+  to {
+    transform: scaleX(-1) scale(1.12) translateX(1.5%);
+  }
+}
+.hero-grade {
+  position: absolute;
+  inset: 0;
+  background:
+    /* Darker under the header. */
+    linear-gradient(180deg, rgba(6, 10, 19, 0.7) 0%, transparent 20%),
+    /* Keep the copy readable. */
+    linear-gradient(90deg, rgba(6, 10, 19, 0.9) 0%, rgba(6, 10, 19, 0.62) 30%, rgba(6, 10, 19, 0.05) 52%, rgba(6, 10, 19, 0.05) 68%, rgba(6, 10, 19, 0.4) 100%),
+    /* Cold blue tint. */
+    linear-gradient(rgba(20, 60, 125, 0.42), rgba(10, 28, 64, 0.5));
+}
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(150, 205, 255, 0.08) 1px, transparent 1px) 0 0 / calc(100% / 4) 100%,
+    linear-gradient(rgba(150, 205, 255, 0.08) 1px, transparent 1px) 0 0 / 100% calc(100% / 3);
+  mask-image: linear-gradient(180deg, transparent 8%, #000 30%, #000 70%, transparent 95%);
+}
+
+.hero-credit {
   position: absolute;
   left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 320px;
-  pointer-events: none;
+  bottom: -18px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
 .hero-inner {
@@ -25,15 +74,22 @@
 
 .hero-title {
   margin: 18px 0 18px;
-  font-size: clamp(36px, 4.4vw, 62px);
+  font-size: clamp(36px, 4.6vw, 66px);
   font-weight: 800;
+  text-transform: uppercase;
+  text-wrap: balance;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.35);
+}
+
+.hero-title .ice-text {
+  display: inline-block;
 }
 
 .hero-sub {
   max-width: 520px;
   margin: 0 0 28px;
   font-size: 17px;
-  color: var(--muted);
+  color: #b4c3dc;
 }
 
 .hero-ctas {
@@ -178,6 +234,11 @@
 }
 
 @media (max-width: 980px) {
+  .hero-grade {
+    background:
+      linear-gradient(180deg, rgba(6, 10, 19, 0.85) 0%, rgba(6, 10, 19, 0.6) 35%, rgba(6, 10, 19, 0.1) 60%, rgba(6, 10, 19, 0.3) 100%),
+      linear-gradient(rgba(20, 60, 125, 0.42), rgba(10, 28, 64, 0.5));
+  }
   .hero-inner {
     grid-template-columns: 1fr;
     min-height: 0;
@@ -191,6 +252,10 @@
   }
 }
 @media (max-width: 560px) {
+  /* The stacked hero is tall and narrow: keep the rider in the slice that shows. */
+  .hero-photo {
+    object-position: 38% 50%;
+  }
   .hero-picker {
     flex-direction: row;
     top: auto;

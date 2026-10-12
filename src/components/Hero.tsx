@@ -29,20 +29,18 @@ export function Hero({ data }: { data: MarketData }) {
 
   return (
     <section className="hero">
-      <svg className="hero-mountains" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden>
-        <path d="M0 320 L0 210 L160 120 L260 180 L420 60 L560 170 L700 90 L840 190 L980 70 L1120 160 L1260 100 L1440 190 L1440 320Z" fill="url(#mtn-a)" />
-        <path d="M0 320 L0 250 L200 180 L340 240 L520 150 L680 230 L860 160 L1040 240 L1220 170 L1440 240 L1440 320Z" fill="url(#mtn-b)" />
-        <defs>
-          <linearGradient id="mtn-a" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#1a2c4f" stopOpacity="0.7" />
-            <stop offset="1" stopColor="#060a13" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="mtn-b" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#0f1d38" />
-            <stop offset="1" stopColor="#060a13" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <div className="hero-backdrop" aria-hidden>
+        <img
+          className="hero-photo"
+          src="/hero/powder-2400.webp"
+          srcSet="/hero/powder-1200.webp 1200w, /hero/powder-2400.webp 2400w"
+          sizes="100vw"
+          alt=""
+          fetchPriority="high"
+        />
+        <div className="hero-grade" />
+        <div className="hero-grid" />
+      </div>
 
       <div className="container hero-inner">
         <div className="hero-copy">
@@ -87,6 +85,7 @@ export function Hero({ data }: { data: MarketData }) {
             </div>
           </dl>
         </div>
+        <div className="hero-credit">Carving powder · Ebbetts Pass, CA</div>
 
         <div className="hero-showcase">
           <div className="hero-aura" />
