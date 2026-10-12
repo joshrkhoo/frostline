@@ -41,6 +41,9 @@ SOURCE_WIDTH = 1200  # photo width the mask is computed from
 MASK_MAX = 1000  # longest side of the saved mask
 EDGE = 2  # px band at the outline that keeps the model's soft alpha
 OFF_FRAME = 0.12  # share of a photo's side the board can cover before it counts as cut off
+TRIM = 1  # version of the drop-shadow trim; masks made before it get re-trimmed
+SHADOW_BAND = 0.025  # widest drop shadow trimmed, as a share of the photo's width
+SHADOW_RUN = 0.25  # a shadow must run along this share of the board's length
 
 
 def key(url: str) -> str:
@@ -121,6 +124,111 @@ def mend(solid):
     return out, changed
 
 
+def trim_shadow(rgb: np.ndarray, solid: np.ndarray) -> np.ndarray:
+    """Peel soft drop shadows off a board's left and right edges.
+
+    Studio shots often cast a grey shadow beside the board, and the model
+    counts it as board, leaving a pale strip down one side. Per row, a shadow
+    is the outer few px of the mask: a smooth, neutral mid-grey, darker than
+    the backdrop and still lightening past the mask edge, outside a sharp step
+    (the board's real edge). Only long runs of such rows are cut, at one width,
+    so dark sidewalls, edge stripes and the like are left alone.
+    """
+    h, w = solid.shape
+    lum = rgb.astype(np.float32) @ np.array([0.299, 0.587, 0.114], np.float32)
+    chroma = rgb.max(2).astype(int) - rgb.min(2).astype(int)
+    border = np.concatenate([lum[0], lum[-1], lum[:, 0], lum[:, -1]])
+    border_chroma = np.concatenate([chroma[0], chroma[-1], chroma[:, 0], chroma[:, -1]])
+    backdrop = float(np.median(border))
+    # Only plain light studio backdrops: on anything else shadows can't be told apart.
+    if backdrop < 200 or np.median(border_chroma) > 10:
+        return solid
+    band = max(4, round(w * SHADOW_BAND))
+    look = max(4, band // 2)
+    cuts = {1: np.zeros(h, int), -1: np.zeros(h, int)}
+    for y in range(h):
+        xs = np.flatnonzero(solid[y])
+        if len(xs) < band * 4:
+            continue
+        x0, x1 = xs[0], xs[-1] + 1
+        for side in (1, -1):
+            if side == 1:
+                inner, ch = lum[y, x1 - band:x1][::-1], chroma[y, x1 - band:x1][::-1]
+                outside = lum[y, x1:x1 + look]
+            else:
+                inner, ch = lum[y, x0:x0 + band], chroma[y, x0:x0 + band]
+                outside = lum[y, max(0, x0 - look):x0][::-1]
+            if len(outside) < look:
+                continue
+            steps = np.abs(np.diff(inner))
+            k = int(np.argmax(steps))  # the board's edge: between inner[k] and inner[k + 1]
+            if k == 0 or steps[k] < 30:
+                continue
+            shadow = inner[:k]  # inner[k] may be an anti-aliased pixel
+            smooth = k == 1 or np.abs(np.diff(shadow)).max() <= steps[k] / 3
+            grey = ch[:k].max() <= 14 and backdrop * 0.6 <= shadow.min() and shadow.max() <= backdrop - 12
+            fading = outside[-1] > shadow[0] + 4 and np.all(np.diff(outside) > -3)
+            if smooth and grey and fading:
+                cuts[side][y] = k + 1
+    ys = np.flatnonzero(solid.any(1))
+    length = ys[-1] - ys[0] + 1
+    out = solid.copy()
+    trimmed_rows = np.zeros(h, bool)
+    for side in (1, -1):
+        # Bridge short gaps; keep runs that cover a good share of the board.
+        lab, n = ndimage.label(ndimage.binary_closing(cuts[side] > 0, structure=np.ones(4, bool)))
+        for i in range(1, n + 1):
+            rows = np.flatnonzero(lab == i)
+            widths = cuts[side][rows][cuts[side][rows] > 0]
+            if len(rows) < max(20, length * SHADOW_RUN) or widths.std() > 2.5:
+                continue
+            c = int(np.median(widths))  # one width, so the new edge stays smooth
+
+            def shadowy(y: int) -> bool:
+                """Looser test to follow a confirmed shadow round the tips."""
+                xs = np.flatnonzero(solid[y])
+                if len(xs) < c * 4:
+                    return False
+                e = xs[-1] + 1 if side == 1 else xs[0]
+                outer = slice(e - c, e) if side == 1 else slice(e, e + c)
+                edge = (e - c - 1, e - c + 1) if side == 1 else (e + c, e + c - 2)
+                # Leave out the board-side pixel, which may be anti-aliased.
+                l = lum[y, outer][1:] if side == 1 else lum[y, outer][:-1]
+                return (
+                    chroma[y, outer].max() <= 14
+                    and backdrop * 0.6 <= l.min()
+                    and l.max() <= backdrop - 6
+                    and abs(lum[y, edge[0]] - lum[y, edge[1]]) >= 20
+                )
+
+            lo, hi = rows[0], rows[-1]
+            while lo > 0 and shadowy(lo - 1):
+                lo -= 1
+            while hi < h - 1 and shadowy(hi + 1):
+                hi += 1
+            rows = np.arange(lo, hi + 1)
+            trimmed_rows[rows] = True
+            for y in rows:
+                xs = np.flatnonzero(solid[y])
+                if len(xs):
+                    if side == 1:
+                        out[y, xs[-1] + 1 - c:xs[-1] + 1] = False
+                    else:
+                        out[y, xs[0]:xs[0] + c] = False
+    if not trimmed_rows.any():
+        return solid
+    # Rows the trim skipped can leave 1–2 row slivers sticking out.
+    opened = ndimage.binary_opening(out, structure=np.ones((7, 1), bool))
+    near_edge = solid & ~ndimage.binary_erosion(solid, iterations=band)
+    near_edge &= ndimage.binary_dilation(trimmed_rows, iterations=4)[:, None]
+    return out & ~(near_edge & ~opened)
+
+
+def has_alpha(im: Image.Image) -> bool:
+    """Photos already cut out by the store: their transparency is the shape."""
+    return int(np.asarray(im)[:, :, 3].min()) < 250
+
+
 def make_mask(session, im: Image.Image) -> np.ndarray:
     from rembg import remove
 
@@ -133,6 +241,8 @@ def make_mask(session, im: Image.Image) -> np.ndarray:
     # the outline is board.
     solid, _ = mend(solid)
     filled = ndimage.binary_fill_holes(solid)
+    if not has_alpha(im):
+        filled = trim_shadow(np.asarray(rgb), filled)
     # Drop specks well away from the board(s).
     lab, n = ndimage.label(filled)
     if n > 1:
@@ -148,7 +258,30 @@ def process(session, url: str, im: Image.Image | None) -> dict:
         return {'skip': 'fetch'}
     if not is_product_shot(im):
         return {'skip': 'scene'}
-    mask = make_mask(session, im)
+    return save_mask(url, make_mask(session, im))
+
+
+def retrim(url: str, entry: dict, im: Image.Image | None) -> dict:
+    """Applies the shadow trim to a mask made before it, without the model."""
+    if im is None:
+        return entry
+    if has_alpha(im):
+        return {**entry, 't': TRIM}
+    w, h = im.size
+    x0, y0, x1, y1 = (round(v * s) for v, s in zip(entry['b'], (w, h, w, h)))
+    saved = Image.open(OUT / f"{entry['k']}.png").getchannel('A').resize((x1 - x0, y1 - y0), Image.LANCZOS)
+    mask = np.zeros((h, w), np.uint8)
+    mask[y0:y1, x0:x1] = np.asarray(saved)
+    solid = mask > 128
+    trimmed = trim_shadow(np.asarray(im.convert('RGB')), solid)
+    if (solid & ~trimmed).sum() == 0:
+        return {**entry, 't': TRIM}
+    mask[solid & ~trimmed] = 0
+    out = save_mask(url, mask)
+    return {**out, 'm': entry.get('m')}
+
+
+def save_mask(url: str, mask: np.ndarray) -> dict:
     ys, xs = np.nonzero(mask > 8)
     h, w = mask.shape
     if len(xs) < w * h * 0.03:
@@ -174,6 +307,7 @@ def process(session, url: str, im: Image.Image | None) -> dict:
     # Lying sideways or shot at an angle: fine in a gallery, odd on a card.
     if x1 - x0 > y1 - y0:
         out['w'] = 1
+    out['t'] = TRIM
     return out
 
 
@@ -197,7 +331,15 @@ def main() -> None:
     todo = [u for u in urls if stale(u)]
     if limit:
         todo = todo[:limit]
-    print(f'{len(urls)} photos, {len(todo)} to process')
+    # Masks from before the shadow trim only need the trim, not the model.
+    untrimmed = [u for u in urls if u not in todo and 'k' in manifest.get(u, {}) and manifest[u].get('t') != TRIM]
+    print(f'{len(urls)} photos, {len(todo)} to process, {len(untrimmed)} to re-trim')
+
+    if untrimmed:
+        with ThreadPoolExecutor(8) as pool:
+            for url, im in zip(untrimmed, pool.map(fetch, untrimmed)):
+                manifest[url] = retrim(url, manifest[url], im)
+        save(manifest)
 
     if todo:
         from rembg import new_session
