@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { isSnowboard } from './classify.ts'
 import { groupBoards } from './match.ts'
 import { normalize, type Listing } from './normalize.ts'
+import type { Board } from '../src/types.ts'
 import { fetchAllProducts, type ShopifyProduct } from './shopify.ts'
 import { STORES } from './stores.ts'
 
@@ -20,6 +21,21 @@ async function loadStore(id: string, domain: string): Promise<ShopifyProduct[]> 
   mkdirSync(cacheDir, { recursive: true })
   writeFileSync(cacheFile, JSON.stringify(products))
   return products
+}
+
+/**
+ * A store's listings from the last good run, rebuilt from boards.json, so a
+ * store that fails today (rate limits, downtime) doesn't vanish from the site.
+ */
+function previousListings(storeId: string): Listing[] {
+  const file = join(outDir, 'boards.json')
+  if (!existsSync(file)) return []
+  const { boards } = JSON.parse(readFileSync(file, 'utf8')) as { boards: Board[] }
+  return boards.flatMap((b) =>
+    b.listings
+      .filter((l) => l.storeId === storeId)
+      .map((l) => ({ ...l, key: b.id, brand: b.brand, model: b.model, specs: b.specs, description: b.description, imageWidth: 0 }) as Listing),
+  )
 }
 
 async function main() {
@@ -39,8 +55,10 @@ async function main() {
         storeStats[store.id] = { products: products.length, boards: boards.length, ok: true }
         console.log(`✓ ${store.name.padEnd(20)} ${String(boards.length).padStart(4)} boards / ${products.length} products`)
       } catch (err) {
-        storeStats[store.id] = { products: 0, boards: 0, ok: false }
-        console.error(`✗ ${store.name}: ${(err as Error).message}`)
+        const kept = previousListings(store.id)
+        listings.push(...kept)
+        storeStats[store.id] = { products: 0, boards: kept.length, ok: false }
+        console.error(`✗ ${store.name}: ${(err as Error).message} (kept ${kept.length} listings from the last run)`)
       }
     }),
   )
