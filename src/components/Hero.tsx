@@ -32,9 +32,10 @@ export function Hero({ data }: { data: MarketData }) {
       <div className="hero-backdrop" aria-hidden>
         <img
           className="hero-photo"
-          src="/hero/powder-2400.webp"
-          srcSet="/hero/powder-1200.webp 1200w, /hero/powder-2400.webp 2400w"
-          sizes="100vw"
+          src="/hero/air-2400.webp"
+          srcSet="/hero/air-1200.webp 1200w, /hero/air-2400.webp 2400w, /hero/air-3600.webp 3600w"
+          // The photo is wider than the hero, so cover scales it past the viewport width.
+          sizes="(max-width: 980px) 300vw, 140vw"
           alt=""
           fetchPriority="high"
         />
@@ -85,7 +86,7 @@ export function Hero({ data }: { data: MarketData }) {
             </div>
           </dl>
         </div>
-        <div className="hero-credit">Carving powder · Ebbetts Pass, CA</div>
+        <div className="hero-credit">Tannheim, Austria · Photo: Sören, CC BY 2.0</div>
 
         <div className="hero-showcase">
           <div className="hero-aura" />
