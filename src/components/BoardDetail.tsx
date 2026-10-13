@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { GENDER_LABEL, money, sizeLabel, storeCount } from '../lib/format'
 import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { BoardView } from '../three/BoardModel'
@@ -34,6 +34,17 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
   }, [board, size])
 
   const best = offers.find((o) => o.inStock) ?? offers[0]
+
+  // On phones a slim buy bar stays on screen whenever the price box isn't.
+  const buyRef = useRef<HTMLDivElement>(null)
+  const [buyInView, setBuyInView] = useState(true)
+  useEffect(() => {
+    const el = buyRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([e]) => setBuyInView(e.isIntersecting))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [best])
   const related = useMemo(
     () =>
       data.boards
@@ -112,7 +123,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
           </div>
 
           {best && (
-            <div className="buy glass">
+            <div className="buy glass" ref={buyRef}>
               <div className="buy-top">
                 <div>
                   <div className="buy-label">Best price{size ? ` in ${size}` : ''}</div>
@@ -229,6 +240,19 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
             ))}
           </div>
         </section>
+      )}
+
+      {best && (
+        <div className={`buy-bar ${buyInView ? '' : 'show'}`} aria-hidden={buyInView}>
+          <div className="buy-bar-price">
+            <span className="price">{money(best.price)}</span>
+            {best.discount > 0 && <span className="badge-deal">−{best.discount}%</span>}
+            <div className="buy-bar-store">at {stores[best.storeId]?.name}</div>
+          </div>
+          <a className="btn btn-gold" href={best.url} target="_blank" rel="noreferrer" tabIndex={buyInView ? -1 : 0}>
+            Go to deal ↗
+          </a>
+        </div>
       )}
     </div>
   )
