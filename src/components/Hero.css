@@ -275,4 +275,28 @@
     width: 44px;
     height: 58px;
   }
+  .hero-sub {
+    font-size: 16px;
+  }
+  .hero-ctas .btn {
+    flex: 1 1 200px;
+  }
+  /* The rider's jacket sits behind the stats on phones; give them a panel. */
+  .hero-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 32px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: rgba(6, 10, 19, 0.6);
+    backdrop-filter: blur(10px);
+  }
+  .hero-stats dt {
+    font-size: 11px;
+    color: #9fb0cc;
+  }
+  .hero-stats dd {
+    font-size: 24px;
+  }
 }
