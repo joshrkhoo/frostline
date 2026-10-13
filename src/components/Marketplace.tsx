@@ -32,6 +32,20 @@ export function Marketplace({ data, filters, onFilters }: Props) {
 
   const active = activeFilterCount(filters)
 
+  // On phones the filters are a bottom sheet: hold the page still behind it,
+  // and let Escape close it.
+  useEffect(() => {
+    if (!panelOpen || !matchMedia('(max-width: 900px)').matches) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPanelOpen(false)
+    addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      removeEventListener('keydown', onKey)
+    }
+  }, [panelOpen])
+
   return (
     <section id="market" className="market container">
       <div className="market-head">
@@ -70,7 +84,13 @@ export function Marketplace({ data, filters, onFilters }: Props) {
       <div className="market-body">
         <div className={`market-side ${panelOpen ? 'open' : ''}`}>
           <FilterPanel filters={filters} onChange={onFilters} facets={facets} stores={data.stores} />
+          <div className="market-sheet-foot">
+            <button className="btn btn-primary" onClick={() => setPanelOpen(false)}>
+              Show {results.length} board{results.length === 1 ? '' : 's'}
+            </button>
+          </div>
         </div>
+        {panelOpen && <div className="market-scrim" onClick={() => setPanelOpen(false)} aria-hidden />}
 
         <div>
           {results.length === 0 ? (
