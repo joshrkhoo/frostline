@@ -5,6 +5,9 @@ import type { Board } from '../types'
 import { BoardImage } from './BoardImage'
 import './BoardCard.css'
 
+// Phone cards are small; a lighter photo keeps the cut-out work quick there.
+const PHOTO_WIDTH = matchMedia('(max-width: 560px)').matches ? 700 : 1200
+
 interface Props {
   board: Board
   storeNames: Record<string, string>
@@ -36,6 +39,7 @@ export function BoardCard({ board, storeNames }: Props) {
             alt={`${board.brand} ${board.model}`}
             altSrcs={board.images.slice(1, 5)}
             showAlt={hover}
+            width={PHOTO_WIDTH}
           />
         ) : (
           <div className="card-noimg display">{board.brand}</div>
