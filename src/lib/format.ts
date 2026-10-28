@@ -25,4 +25,18 @@ export function timeAgo(iso: string): string {
 export const sizeLabel = (s: { cm: number | null; wide: boolean; label: string }) =>
   s.cm ? `${s.cm}${s.wide ? 'W' : ''}` : s.label.toUpperCase()
 
+/** Binding sizes smallest first; board lengths sort by their cm. */
+export const FIT_ORDER = ['XS', 'XS/S', 'S', 'S/M', 'M', 'M/L', 'L', 'L/XL', 'XL']
+export const sizeRank = (s: { cm: number | null; label: string }) => s.cm ?? FIT_ORDER.indexOf(s.label.toUpperCase())
+
+/**
+ * The colourway in a listing title, for shops that list each colour as its
+ * own product: "Union Atlas Bindings - Violet", "Flux DS Binding 2026 | Black".
+ */
+export function colourOf(title: string): string | null {
+  const m = title.match(/\s(?:-|\|)\s([^-|]+?)\s*$/)
+  if (!m || /\b(mens|men's|womens|women's|kids|youth|small|medium|large|xs|s|m|l|xl|\d+)\b/i.test(m[1])) return null
+  return m[1]
+}
+
 export const storeCount = (listings: { storeId: string }[]) => new Set(listings.map((l) => l.storeId)).size

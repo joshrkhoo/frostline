@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { GENDER_LABEL, money, sizeLabel, storeCount } from '../lib/format'
+import { listHref } from '../lib/router'
+import { GENDER_LABEL, colourOf, money, sizeLabel, sizeRank, storeCount } from '../lib/format'
 import { LazyBoardStage as BoardStage } from '../three/LazyBoardStage'
 import type { BoardView } from '../three/BoardModel'
 import type { Board, MarketData } from '../types'
@@ -14,7 +15,29 @@ const VIEWS: [BoardView, string][] = [
   ['free', 'Spin'],
 ]
 
+/** Bindings have no 3D model: a large cut-out photo, with the others to pick from. */
+function PhotoViewer({ images, alt }: { images: string[]; alt: string }) {
+  const [pick, setPick] = useState(0)
+  const src = images[pick] ?? images[0]
+  return (
+    <div className="viewer glass photo-viewer">
+      <div className="viewer-glow" />
+      <div className="photo-viewer-main">{src ? <BoardImage key={src} src={src} alt={alt} /> : <div className="card-noimg display">{alt}</div>}</div>
+      {images.length > 1 && (
+        <div className="viewer-photos">
+          {images.slice(0, 6).map((s, n) => (
+            <button key={s} className={`viewer-photo ${n === pick ? 'on' : ''}`} onClick={() => setPick(n)} aria-label={`Photo ${n + 1}`}>
+              <BoardImage src={s} alt="" width={400} />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function BoardDetail({ board, data }: { board: Board; data: MarketData }) {
+  const binding = board.kind === 'binding'
   const [view, setView] = useState<BoardView>('free')
   const [size, setSize] = useState<string | null>(null)
   const stores = useMemo(() => Object.fromEntries(data.stores.map((s) => [s.id, s])), [data.stores])
@@ -22,7 +45,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
 
   const sizeOptions = useMemo(() => {
     const all = new Map<string, number>()
-    for (const l of board.listings) for (const s of l.sizes) if (s.available) all.set(sizeLabel(s), s.cm ?? 0)
+    for (const l of board.listings) for (const s of l.sizes) if (s.available) all.set(sizeLabel(s), sizeRank(s))
     return [...all.entries()].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([label]) => label)
   }, [board])
 
@@ -54,61 +77,74 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
     [data.boards, board],
   )
 
-  const specs: [string, string | undefined][] = [
-    ['Profile', board.specs.profile],
-    ['Shape', board.specs.shape],
-    ['Flex', board.specs.flex],
-    ['Level', board.specs.level],
-    ['Terrain', board.specs.terrain.join(', ') || undefined],
-    ['Season', board.year?.toString()],
-  ]
+  const specs: [string, string | undefined][] = binding
+    ? [
+        ['Entry', board.specs.entry],
+        ['Flex', board.specs.flex],
+        ['Level', board.specs.level],
+        ['Terrain', board.specs.terrain.join(', ') || undefined],
+        ['Sizes', board.fits.join(', ') || undefined],
+        ['Season', board.year?.toString()],
+      ]
+    : [
+        ['Profile', board.specs.profile],
+        ['Shape', board.specs.shape],
+        ['Flex', board.specs.flex],
+        ['Level', board.specs.level],
+        ['Terrain', board.specs.terrain.join(', ') || undefined],
+        ['Season', board.year?.toString()],
+      ]
 
   return (
     <div className="detail container">
       <nav className="crumbs">
-        <a href="#/">← Marketplace</a>
+        <a href={listHref(board.kind)}>← {binding ? 'Bindings' : 'Marketplace'}</a>
         <span>/</span>
         <span>{board.brand}</span>
       </nav>
 
       <div className="detail-grid">
-        <div className="viewer glass">
-          <div className="viewer-glow" />
-          <BoardStage
-            key={board.id}
-            className="viewer-stage"
-            images={board.images}
-            brand={board.brand}
-            model={board.model}
-            view={view}
-            onViewChange={setView}
-            autoSpin={view === 'free'}
-            cameraZ={3.6}
-            profile={board.specs.profile}
-          />
-          <div className="viewer-controls" role="radiogroup" aria-label="Board view">
-            {VIEWS.map(([v, label]) => (
-              <button key={v} role="radio" aria-checked={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="viewer-hint">Drag to spin · tap a view to snap</p>
-          {board.specs.profile && (
-            <button className="viewer-profile chip" onClick={() => setView('side')} title="See the profile from the side">
-              {board.specs.profile} profile
-            </button>
-          )}
-          {board.images.length > 0 && (
-            <div className="viewer-photos">
-              {board.images.slice(0, 6).map((src) => (
-                <a key={src} href={src} target="_blank" rel="noreferrer" className="viewer-photo">
-                  <BoardImage src={src} alt="" width={400} />
-                </a>
+        {binding ? (
+          <PhotoViewer images={board.images} alt={`${board.brand} ${board.model}`} />
+        ) : (
+          <div className="viewer glass">
+            <div className="viewer-glow" />
+            <BoardStage
+              key={board.id}
+              className="viewer-stage"
+              images={board.images}
+              brand={board.brand}
+              model={board.model}
+              view={view}
+              onViewChange={setView}
+              autoSpin={view === 'free'}
+              cameraZ={3.6}
+              profile={board.specs.profile}
+            />
+            <div className="viewer-controls" role="radiogroup" aria-label="Board view">
+              {VIEWS.map(([v, label]) => (
+                <button key={v} role="radio" aria-checked={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>
+                  {label}
+                </button>
               ))}
             </div>
-          )}
-        </div>
+            <p className="viewer-hint">Drag to spin · tap a view to snap</p>
+            {board.specs.profile && (
+              <button className="viewer-profile chip" onClick={() => setView('side')} title="See the profile from the side">
+                {board.specs.profile} profile
+              </button>
+            )}
+            {board.images.length > 0 && (
+              <div className="viewer-photos">
+                {board.images.slice(0, 6).map((src) => (
+                  <a key={src} href={src} target="_blank" rel="noreferrer" className="viewer-photo">
+                    <BoardImage src={src} alt="" width={400} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="info">
           <div className="eyebrow">{board.brand}</div>
@@ -182,6 +218,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
                       <div className="offer-sub">
                         {st?.location}
                         {o.year ? ` · ${o.year} model` : ''}
+                        {binding && colourOf(o.title) ? ` · ${colourOf(o.title)}` : ''}
                       </div>
                     </div>
                   </div>
@@ -223,7 +260,7 @@ export function BoardDetail({ board, data }: { board: Board; data: MarketData })
 
           {board.description && (
             <div className="about">
-              <h3 className="display">About this board</h3>
+              <h3 className="display">About this {binding ? 'binding' : 'board'}</h3>
               <p>{board.description.length > 520 ? `${board.description.slice(0, 520)}…` : board.description}</p>
             </div>
           )}

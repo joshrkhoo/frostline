@@ -128,6 +128,29 @@
   border-color: var(--ice);
 }
 
+/* Bindings: a photo instead of the 3D stage, with bigger thumbnails to pick from. */
+.photo-viewer .viewer-photos {
+  bottom: 16px;
+  gap: 8px;
+}
+.photo-viewer .viewer-photo {
+  width: 64px;
+  height: 64px;
+  cursor: pointer;
+}
+.viewer-photo.on {
+  opacity: 1;
+  border-color: var(--ice);
+  box-shadow: 0 0 0 3px rgba(138, 227, 255, 0.2);
+}
+.photo-viewer-main {
+  position: absolute;
+  inset: 36px 36px 104px;
+}
+.photo-viewer-main .board-img-cut {
+  filter: drop-shadow(0 24px 30px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 30px rgba(90, 200, 255, 0.12));
+}
+
 /* ---------- info ---------- */
 
 .info-title {
