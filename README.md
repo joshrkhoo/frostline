@@ -29,7 +29,7 @@ Frostline isn't a general shopping search. It's a marketplace built only for sno
 - **See the whole board.** Every board can be spun in 3D: top sheet, base and sidewall. The 3D model is built from the shops' own product photos.
 - **Deals up front.** Discounts compare against the same season's RRP, so an older model never looks like a bigger saving than it is.
 
-Today it tracks **~420 in-stock boards and ~200 bindings from 9 shops**. Boots and other gear are planned.
+Today it tracks **~420 in-stock boards and ~225 bindings from 9 shops**. Boots and other gear are planned.
 
 ## Screenshots
 
@@ -37,9 +37,9 @@ Today it tracks **~420 in-stock boards and ~200 bindings from 9 shops**. Boots a
 | --- | --- |
 | ![Home page with featured deal on a 3D pedestal](docs/screenshots/home.jpg) | ![Marketplace grid searching for Burton, with filters](docs/screenshots/marketplace.jpg) |
 
-| Board page |
-| --- |
-| ![Board page with 3D viewer and per-store price comparison](docs/screenshots/board.jpg) |
+| Board page | Bindings |
+| --- | --- |
+| ![Board page with 3D viewer and per-store price comparison](docs/screenshots/board.jpg) | ![Bindings page with today's top binding deals and the bindings grid](docs/screenshots/bindings.jpg) |
 
 ## Features
 
