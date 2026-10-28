@@ -1,5 +1,5 @@
 """
-Pre-computes background-removal masks for every board photo on the site.
+Pre-computes background-removal masks for every board and binding photo on the site.
 
 Store photos put boards on white or grey backdrops, sometimes with soft
 shadows, and many boards are white themselves. Colour-matching the backdrop in
@@ -33,6 +33,7 @@ from scipy.spatial import ConvexHull
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / 'public' / 'data' / 'boards.json'
+BINDINGS = ROOT / 'public' / 'data' / 'bindings.json'
 OUT = ROOT / 'public' / 'cutouts'
 MANIFEST = OUT / 'index.json'
 
@@ -45,6 +46,7 @@ TRIM = 2  # version of the clean-up (outline seal, shadow trim); older masks get
 SHADOW_BAND = 0.025  # widest drop shadow trimmed, as a share of the photo's width
 SHADOW_RUN = 0.25  # a shadow must run along this share of the board's length
 SEAL_SOLIDITY = 0.75  # how convex the board a sealed pocket completes must be
+BINDING_PHOTOS = 3  # photos per binding to cut out; later ones are close-ups of details
 
 
 def key(url: str) -> str:
@@ -273,7 +275,7 @@ def has_alpha(im: Image.Image) -> bool:
     return int(np.asarray(im)[:, :, 3].min()) < 250
 
 
-def make_mask(session, im: Image.Image) -> np.ndarray:
+def make_mask(session, im: Image.Image, binding: bool = False) -> np.ndarray:
     from rembg import remove
 
     rgb = im.convert('RGB')
@@ -281,12 +283,17 @@ def make_mask(session, im: Image.Image) -> np.ndarray:
     # Respect transparency the photo already has.
     a = np.minimum(a, np.asarray(im)[:, :, 3])
     solid = a > 100
-    # Pale boards can come out see-through or in pieces; anything enclosed by
-    # the outline is board.
-    solid, _ = mend(solid)
-    filled = ndimage.binary_fill_holes(solid)
-    if not has_alpha(im):
-        filled = trim_shadow(np.asarray(rgb), seal_outline(np.asarray(rgb), filled))
+    if binding:
+        # A binding's straps and highback frame open space the backdrop shows
+        # through, so none of the board clean-ups (which fill in) apply.
+        filled = solid
+    else:
+        # Pale boards can come out see-through or in pieces; anything enclosed
+        # by the outline is board.
+        solid, _ = mend(solid)
+        filled = ndimage.binary_fill_holes(solid)
+        if not has_alpha(im):
+            filled = trim_shadow(np.asarray(rgb), seal_outline(np.asarray(rgb), filled))
     # Drop specks well away from the board(s).
     lab, n = ndimage.label(filled)
     if n > 1:
@@ -297,12 +304,12 @@ def make_mask(session, im: Image.Image) -> np.ndarray:
     return np.where(inner, 255, np.where(filled, a, 0)).astype(np.uint8)
 
 
-def process(session, url: str, im: Image.Image | None) -> dict:
+def process(session, url: str, im: Image.Image | None, binding: bool = False) -> dict:
     if im is None:
         return {'skip': 'fetch'}
     if not is_product_shot(im):
         return {'skip': 'scene'}
-    return save_mask(url, make_mask(session, im))
+    return save_mask(url, make_mask(session, im, binding))
 
 
 def retrim(url: str, entry: dict, im: Image.Image | None) -> dict:
@@ -366,9 +373,13 @@ def main() -> None:
     limit = int(sys.argv[sys.argv.index('--limit') + 1]) if '--limit' in sys.argv else None
     OUT.mkdir(parents=True, exist_ok=True)
     boards = json.loads(DATA.read_text())['boards']
-    # Every board's main photo first, then second photos, and so on.
-    depth = max(len(b['images']) for b in boards)
-    urls = list(dict.fromkeys(b['images'][i] for i in range(depth) for b in boards if i < len(b['images'])))
+    bindings = json.loads(BINDINGS.read_text())['boards'] if BINDINGS.exists() else []
+    bindings = [{**b, 'images': b['images'][:BINDING_PHOTOS]} for b in bindings]
+    binding_urls = {u for b in bindings for u in b['images']}
+    # Every item's main photo first, then second photos, and so on.
+    items = boards + bindings
+    depth = max(len(b['images']) for b in items)
+    urls = list(dict.fromkeys(b['images'][i] for i in range(depth) for b in items if i < len(b['images'])))
     manifest: dict = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
 
     def stale(u: str) -> bool:
@@ -379,7 +390,9 @@ def main() -> None:
     if limit:
         todo = todo[:limit]
     # Masks from before the latest clean-up only need the clean-up, not the model.
-    untrimmed = [u for u in urls if u not in todo and 'k' in manifest.get(u, {}) and manifest[u].get('t') != TRIM]
+    untrimmed = [
+        u for u in urls if u not in todo and u not in binding_urls and 'k' in manifest.get(u, {}) and manifest[u].get('t') != TRIM
+    ]
     print(f'{len(urls)} photos, {len(todo)} to process, {len(untrimmed)} to re-trim')
 
     if untrimmed:
@@ -400,7 +413,7 @@ def main() -> None:
                 ahead[i] = None
                 if i + 4 < len(todo):
                     ahead.append(pool.submit(fetch, todo[i + 4]))
-                manifest[url] = {**process(session, url, im), 'm': MODEL}
+                manifest[url] = {**process(session, url, im, url in binding_urls), 'm': MODEL}
                 if i % 25 == 24:
                     save(manifest)
                     print(f'  {i + 1}/{len(todo)}', flush=True)
