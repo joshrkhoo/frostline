@@ -23,13 +23,13 @@ Find a board, spin it in 3D, and see which shop sells it for the least.
 
 ## What it is
 
-Frostline isn't a general shopping search. It's a marketplace built only for snowboards and only for deals:
+Frostline isn't a general shopping search. It's a marketplace built only for snowboard gear and only for deals:
 
 - **Board first, then shops.** Each board appears once. Open it to compare every Australian shop selling it, with price, original price, discount and sizes in stock.
 - **See the whole board.** Every board can be spun in 3D: top sheet, base and sidewall. The 3D model is built from the shops' own product photos.
 - **Deals up front.** Discounts compare against the same season's RRP, so an older model never looks like a bigger saving than it is.
 
-Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other gear are planned.
+Today it tracks **~420 in-stock boards and ~200 bindings from 9 shops**. Boots and other gear are planned.
 
 ## Screenshots
 
@@ -61,6 +61,12 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 - Specs (profile, shape, flex, level, terrain, season) merged from all stores' data.
 - "More deals like this" from the same brand or terrain.
 
+**Bindings** (`#/bindings`)
+- Their own page and header tab, with a deals header showing live stats and today's three best binding deals.
+- Filters for size (XS–XL; an "S/M" binding matches both S and M), entry (Strap, Step On, Hands-free), rider, brand, store, price and splitboard bindings.
+- Binding pages swap the 3D viewer for a large cut-out photo with thumbnails, and list entry, flex, terrain and sizes. Shops that list each colourway as its own product show the colour on each offer.
+- Matching ignores word order ("Step On Cartel X" = "Cartel X Step On", "FASE Mercury" = "Mercury FASE") and treats Burton's "Re:Flex" as the standard model. Women's and kids' bindings stay separate from the men's, and a listing a shop doesn't label joins the women's model of the same name when there's no men's one.
+
 **Data**
 - Prices re-scraped daily by a GitHub Action.
 - Only in-stock listings are kept.
@@ -89,7 +95,7 @@ Today it tracks **~420 in-stock boards from 9 shops**. Bindings, boots and other
 Every tracked shop runs on Shopify, which exposes the catalogue publicly at `/products.json`. The scraper pages through each one with a small delay between requests, and backs off exponentially and retries when the shop answers 429 or a 5xx. If a shop still fails, its listings from the previous `boards.json` are kept, so one flaky store never empties out of the site for a day. It caches the raw download in `.cache/` so you can iterate without hitting the shops again.
 
 ### 2. Classifying
-Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a generic `Snowboard` type covering every snow product, a `Boards` type plus a `snowboard` tag, or no type at all with a `JUNIOR SNOWBOARDS` tag. `classify.ts` handles all of these and drops boots, bindings, bags, outerwear and accessories.
+Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a generic `Snowboard` type covering every snow product, a `Boards` type plus a `snowboard` tag, or no type at all with a `JUNIOR SNOWBOARDS` tag. `classify.ts` handles all of these and drops boots, bindings, bags, outerwear and accessories. Bindings get their own classifier, which leaves out ski, wakeboard, water-ski, cross-country and touring bindings, spare parts and board packages, all of which also say "binding". Boards go to `boards.json` and bindings to `bindings.json`, in the same shape; each page only loads its own file.
 
 ### 3. Normalizing
 `normalize.ts` turns each product into a listing. It:
@@ -103,7 +109,7 @@ Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a gener
 `match.ts` groups listings into one board by brand plus a normalised model key. The key handles spacing and naming differences, such as "Counter Balance" vs "Counterbalance Camber". Kids "Grom" versions stay separate from the adult boards. The board's discount compares the best in-stock price with the same season's RRP.
 
 ### 5. Cut-outs and 3D from product photos
-**Cut-outs.** `scraper/cutouts.py` runs the BiRefNet segmentation model (via [rembg](https://github.com/danielgatis/rembg)) over every board photo once, and saves a small mask cropped to the board(s) plus a manifest in `public/cutouts/`. Anything enclosed by a board's outline is made solid, so pale boards never come out see-through. When the model catches only the drawn outline of a white board on white (a gap at the nose stops the fill), any backdrop-white area the photo encloses is filled too, as long as the board it completes is a smooth, near-convex shape, so snow in lifestyle shots stays out. BiRefNet also tends to treat a studio drop shadow as part of the board, which shows as a pale strip down one edge of a dark board. A conservative trim cuts it off: only on light, neutral backdrops, and only for a smooth grey band that fades away from the board and runs a consistent width along at least a quarter of its length. Saved masks get these clean-ups without rerunning the model (tracked by a `t` version in the manifest). The script also records which photos are lifestyle shots (no plain backdrop), close-ups that run off the frame, or boards lying sideways. In the browser, `src/lib/cutout.ts` draws the photo through its mask, and cards pick the first upright, whole-board photo. Photos added since the last mask run fall back to colour-matching the backdrop in the browser.
+**Cut-outs.** `scraper/cutouts.py` runs the BiRefNet segmentation model (via [rembg](https://github.com/danielgatis/rembg)) over every board photo, and the first three photos of each binding, once, and saves a small mask cropped to the board(s) plus a manifest in `public/cutouts/`. Anything enclosed by a board's outline is made solid, so pale boards never come out see-through. When the model catches only the drawn outline of a white board on white (a gap at the nose stops the fill), any backdrop-white area the photo encloses is filled too, as long as the board it completes is a smooth, near-convex shape, so snow in lifestyle shots stays out. BiRefNet also tends to treat a studio drop shadow as part of the board, which shows as a pale strip down one edge of a dark board. A conservative trim cuts it off: only on light, neutral backdrops, and only for a smooth grey band that fades away from the board and runs a consistent width along at least a quarter of its length. Binding photos skip these board clean-ups, since the backdrop shows through between straps and must stay open. Saved masks get the board clean-ups without rerunning the model (tracked by a `t` version in the manifest). The script also records which photos are lifestyle shots (no plain backdrop), close-ups that run off the frame, or boards lying sideways. In the browser, `src/lib/cutout.ts` draws the photo through its mask, and cards pick the first upright, whole-board photo. Photos added since the last mask run fall back to colour-matching the backdrop in the browser.
 
 **3D.** No 3D models are needed. `src/lib/boardArt.ts` runs in the browser:
 1. Loads the product photos from Shopify's CDN, which allows cross-origin image reads.
@@ -121,7 +127,7 @@ Shops file snowboards very differently: `Snowboards`, `Mens Snowboards`, a gener
 | Styling | Hand-written CSS with design tokens. Unbounded and Manrope fonts |
 | Scraper | Node 22, TypeScript via `tsx`, native `fetch` |
 | Cut-outs | Python 3.11, rembg + BiRefNet (ONNX, CPU), NumPy, SciPy, Pillow |
-| Data | One static JSON file (`public/data/boards.json`, about 200 KB gzipped) |
+| Data | Static JSON files: `public/data/boards.json` (about 200 KB gzipped) and `bindings.json` |
 | Hosting | Vercel (static site) |
 | Automation | GitHub Actions, scheduled daily scrape |
 
@@ -166,7 +172,7 @@ npm run dev            # http://localhost:5173, using the committed boards.json
 | `npm run dev` | Start the Vite dev server |
 | `npm run build` | Typecheck the app and scraper, then build to `dist/` |
 | `npm run preview` | Serve the production build locally |
-| `npm run scrape` | Download every store's catalogue and rebuild `public/data/boards.json` (~1–2 min) |
+| `npm run scrape` | Download every store's catalogue and rebuild `public/data/boards.json` and `bindings.json` (~1–2 min) |
 | `npm run scrape:cached` | Rebuild `boards.json` from the last download in `.cache/`, without network calls |
 | `python scraper/cutouts.py` | Make masks for photos that don't have one yet, and re-trim older masks (`pip install -r scraper/requirements.txt` first; about 10s per photo on CPU) |
 
@@ -186,26 +192,26 @@ frostline/
 ├── scraper/
 │   ├── stores.ts          shops to track
 │   ├── shopify.ts         paginated products.json fetcher with retry
-│   ├── classify.ts        is this product a snowboard?
+│   ├── classify.ts        is this product a snowboard? a binding?
 │   ├── normalize.ts       product → listing (model, sizes, price, specs)
 │   ├── match.ts           listings → boards across stores
-│   ├── index.ts           entry point, writes public/data/boards.json
+│   ├── index.ts           entry point, writes public/data/boards.json and bindings.json
 │   └── cutouts.py         photo → background-removal mask (BiRefNet)
 ├── src/
 │   ├── lib/
 │   │   ├── boardArt.ts    photo → board textures and outline
 │   │   ├── cutout.ts      photo + mask → transparent cut-out
 │   │   ├── filters.ts     search, filters, sorting, facets
-│   │   ├── data.ts        loads boards.json
-│   │   ├── router.ts      hash router (#/board/:id)
+│   │   ├── data.ts        loads boards.json or bindings.json
+│   │   ├── router.ts      hash router (#/board/:id, #/bindings, #/binding/:id)
 │   │   └── format.ts      AUD formatting, Shopify image resizing
 │   ├── three/
 │   │   ├── boardGeometry.ts   outline → mesh (rocker, sidewalls, UVs)
 │   │   ├── BoardModel.tsx     drag-to-spin, preset views, idle float
 │   │   ├── BoardStage.tsx     canvas, lights, pedestal, sparkles
 │   │   └── LazyBoardStage.tsx loads three.js on demand
-│   └── components/        Header, Hero, Marketplace, FilterPanel, BoardCard, BoardImage, BoardDetail, StoresSection
-├── public/data/boards.json    scraped data (updated daily)
+│   └── components/        Header, Hero, BindingsHero, Marketplace, FilterPanel, BoardCard, BoardImage, BoardDetail, StoresSection
+├── public/data/               boards.json + bindings.json (updated daily)
 ├── public/cutouts/            board masks + index.json (updated daily)
 ├── .github/workflows/scrape.yml
 └── docs/screenshots/
@@ -214,7 +220,7 @@ frostline/
 ## Deployment
 
 - **Hosting:** Vercel, as a static Vite build. The repo is connected to Vercel, so every push to `main` deploys automatically.
-- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper, makes masks for any new photos, and commits the updated `boards.json` and `public/cutouts/`. The run is long, so the commit is rebased onto `main` before pushing in case `main` moved meanwhile. That commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
+- **Daily data:** `.github/workflows/scrape.yml` runs every day at 19:00 UTC (about 6am in eastern Australia). It runs the scraper, makes masks for any new photos, and commits the updated `boards.json`, `bindings.json` and `public/cutouts/`. The run is long, so the commit is rebased onto `main` before pushing in case `main` moved meanwhile. That commit triggers a fresh Vercel deploy, so the live prices are never more than a day old. It can also be triggered by hand from the Actions tab.
 
 ## Pricing APIs
 
@@ -229,7 +235,8 @@ There's no snowboard-specific pricing API, and no Australian one either. The opt
 
 ## Roadmap
 
-- [ ] Bindings, boots, outerwear and accessories
+- [x] Bindings
+- [ ] Boots, outerwear and accessories
 - [ ] Price history and price-drop alerts
 - [ ] Adapters for non-Shopify shops (X-Dream, STM, Boardstore)
 - [ ] Boardworld via its search API
