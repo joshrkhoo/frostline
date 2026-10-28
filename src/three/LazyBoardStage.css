@@ -1,0 +1,9 @@
+.stage-flat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stage-flat-img {
+  width: 70%;
+  height: 78%;
+}
