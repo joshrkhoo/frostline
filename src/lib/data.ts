@@ -1,21 +1,34 @@
 import { useEffect, useState } from 'react'
-import type { MarketData } from '../types'
+import type { Kind, MarketData } from '../types'
 
-let cache: Promise<MarketData> | null = null
+const FILES: Record<Kind, string> = { board: 'boards.json', binding: 'bindings.json' }
+const cache: Partial<Record<Kind, Promise<MarketData>>> = {}
 
-export function loadMarket(): Promise<MarketData> {
-  cache ??= fetch(`${import.meta.env.BASE_URL}data/boards.json`).then((r) => {
-    if (!r.ok) throw new Error(`Failed to load board data (${r.status})`)
-    return r.json() as Promise<MarketData>
+/** Each kind has its own file, so the snowboard pages never download the bindings. */
+export function loadMarket(kind: Kind = 'board'): Promise<MarketData> {
+  cache[kind] ??= fetch(`${import.meta.env.BASE_URL}data/${FILES[kind]}`).then((r) => {
+    if (!r.ok) throw new Error(`Failed to load ${kind} data (${r.status})`)
+    return r.json().then((d: MarketData) => ({
+      ...d,
+      // Files written before bindings existed lack these fields.
+      boards: d.boards.map((b) => ({ ...b, kind, fits: b.fits ?? [] })),
+    }))
   })
-  return cache
+  return cache[kind]
 }
 
-export function useMarket() {
-  const [data, setData] = useState<MarketData | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export function useMarket(kind: Kind = 'board') {
+  const [state, setState] = useState<{ kind: Kind; data: MarketData | null; error: string | null }>({ kind, data: null, error: null })
   useEffect(() => {
-    loadMarket().then(setData, (e: Error) => setError(e.message))
-  }, [])
-  return { data, error }
+    let live = true
+    loadMarket(kind).then(
+      (data) => live && setState({ kind, data, error: null }),
+      (e: Error) => live && setState({ kind, data: null, error: e.message }),
+    )
+    return () => {
+      live = false
+    }
+  }, [kind])
+  // Never hand back the other kind's data while switching.
+  return state.kind === kind ? { data: state.data, error: state.error } : { data: null, error: null }
 }

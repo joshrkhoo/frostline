@@ -1,5 +1,8 @@
 export type Gender = 'mens' | 'womens' | 'kids' | 'unisex'
 
+/** What a marketplace item is. Both kinds share the Board shape. */
+export type Kind = 'board' | 'binding'
+
 export interface Size {
   label: string
   cm: number | null
@@ -13,6 +16,8 @@ export interface Specs {
   flex?: string
   level?: string
   terrain: string[]
+  /** Bindings: Strap, Step On or Hands-free. */
+  entry?: string
 }
 
 export interface Listing {
@@ -33,6 +38,7 @@ export interface Listing {
 
 export interface Board {
   id: string
+  kind: Kind
   brand: string
   model: string
   gender: Gender
@@ -42,6 +48,8 @@ export interface Board {
   specs: Specs
   description: string
   sizes: number[]
+  /** Bindings: sizes in stock, XS…XL. */
+  fits: string[]
   bestPrice: number
   rrp: number
   discount: number

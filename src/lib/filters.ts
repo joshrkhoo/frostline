@@ -14,6 +14,9 @@ export interface Filters {
   maxPrice: number | null
   minDiscount: number
   size: number | null
+  /** Bindings: a size, XS…XL. */
+  fit: string | null
+  entries: string[]
   splitboards: boolean
   sort: SortKey
 }
@@ -29,6 +32,8 @@ export const DEFAULT_FILTERS: Filters = {
   maxPrice: null,
   minDiscount: 0,
   size: null,
+  fit: null,
+  entries: [],
   splitboards: true,
   sort: 'deal',
 }
@@ -40,7 +45,7 @@ function matchesQuery(b: Board, query: string): boolean {
   const tokens = norm(query).split(/\s+/).filter(Boolean)
   if (!tokens.length) return true
   const hay = norm(
-    [b.brand, b.model, b.year, b.gender, b.category, b.specs.profile, b.specs.shape, ...b.specs.terrain].join(' '),
+    [b.brand, b.model, b.year, b.gender, b.category, b.specs.profile, b.specs.shape, b.specs.entry, ...b.specs.terrain].join(' '),
   )
   const compact = hay.replace(/\s+/g, '')
   return tokens.every((t) => hay.includes(t) || compact.includes(t))
@@ -58,6 +63,9 @@ export function applyFilters(boards: Board[], f: Filters): Board[] {
     if (f.maxPrice !== null && b.bestPrice > f.maxPrice) return false
     if (b.discount < f.minDiscount) return false
     if (f.size !== null && !b.sizes.some((s) => Math.abs(s - f.size!) <= 1)) return false
+    // "S/M" fits both S and M riders.
+    if (f.fit !== null && !b.fits.some((s) => s === f.fit || s.split('/').includes(f.fit!))) return false
+    if (f.entries.length && !(b.specs.entry && f.entries.includes(b.specs.entry))) return false
     return matchesQuery(b, f.query)
   })
 
@@ -81,6 +89,7 @@ export function facetCounts(boards: Board[]) {
   return {
     brands: count(boards.map((b) => b.brand)),
     profiles: count(boards.map((b) => b.specs.profile)),
+    entries: count(boards.map((b) => b.specs.entry)),
     terrain: count(boards.flatMap((b) => b.specs.terrain)),
     genders: count(boards.map((b) => b.gender)) as [Gender, number][],
   }
@@ -96,6 +105,8 @@ export function activeFilterCount(f: Filters): number {
     (f.minPrice !== null ? 1 : 0) +
     (f.maxPrice !== null ? 1 : 0) +
     (f.minDiscount > 0 ? 1 : 0) +
-    (f.size !== null ? 1 : 0)
+    (f.size !== null ? 1 : 0) +
+    (f.fit !== null ? 1 : 0) +
+    f.entries.length
   )
 }
