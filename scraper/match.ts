@@ -1,7 +1,8 @@
-import type { Gender, Listing, Specs } from './normalize.ts'
+import { FIT_ORDER, type Gender, type Kind, type Listing, type Specs } from './normalize.ts'
 
 export interface Board {
   id: string
+  kind: Kind
   brand: string
   model: string
   gender: Gender
@@ -11,6 +12,8 @@ export interface Board {
   specs: Specs
   description: string
   sizes: number[]
+  /** Bindings: sizes in stock, XS…XL. */
+  fits: string[]
   bestPrice: number
   rrp: number
   discount: number
@@ -32,11 +35,35 @@ function mergeSpecs(listings: Listing[]): Specs {
     flex: first('flex'),
     level: first('level'),
     terrain: [...new Set(listings.flatMap((l) => l.specs.terrain))],
+    entry: first('entry'),
   }
 }
 
-/** Groups store listings of the same board model into one marketplace entry. */
-export function groupBoards(listings: Listing[]): Board[] {
+/** Model names as shops write them: on a tie, the one with more capitals ("DS" over "Ds"). */
+const bestName = (names: string[]) => {
+  const counts = new Map<string, number>()
+  for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1)
+  const caps = (n: string) => n.replace(/[^A-Z]/g, '').length
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || caps(b[0]) - caps(a[0]))[0][0]
+}
+
+/**
+ * Some shops don't say a binding is women's ("Burton Escapade"). A listing
+ * with no gender joins the women's (or kids') model of the same name when
+ * there's no men's one.
+ */
+function adoptGender(listings: Listing[]): void {
+  const keys = new Set(listings.map((l) => l.key))
+  for (const l of listings) {
+    if (l.gender !== 'unisex' || listings.some((o) => o.key === l.key && o.gender === 'mens')) continue
+    const target = ['womens', 'kids'].map((g) => `${l.key}--${g}`).filter((k) => keys.has(k))
+    if (target.length === 1) l.key = target[0]
+  }
+}
+
+/** Groups store listings of the same board (or binding) model into one marketplace entry. */
+export function groupBoards(listings: Listing[], kind: Kind = 'board'): Board[] {
+  if (kind === 'binding') adoptGender(listings)
   const groups = new Map<string, Listing[]>()
   for (const l of listings) {
     if (!l.model || !Number.isFinite(l.price) || l.price <= 0) continue
@@ -59,11 +86,13 @@ export function groupBoards(listings: Listing[]): Board[] {
     const genders = ls.map((l) => l.gender).filter((g) => g !== 'unisex')
     const years = ls.map((l) => l.year).filter((y): y is number => y !== null)
     const sizes = [...new Set(ls.flatMap((l) => l.sizes.filter((s) => s.available && s.cm).map((s) => s.cm!)))]
+    const fits = [...new Set(ls.flatMap((l) => l.sizes.filter((s) => s.available && !s.cm).map((s) => s.label)))]
 
     return {
       id: key,
+      kind,
       brand: mostCommon(ls.map((l) => l.brand)),
-      model: mostCommon(ls.map((l) => l.model)),
+      model: kind === 'binding' ? bestName(ls.map((l) => l.model)) : mostCommon(ls.map((l) => l.model)),
       gender: genders.length ? mostCommon(genders) : 'unisex',
       category: ls.some((l) => l.category === 'splitboard') ? 'splitboard' : 'snowboard',
       year: years.length ? Math.max(...years) : null,
@@ -71,6 +100,7 @@ export function groupBoards(listings: Listing[]): Board[] {
       specs: mergeSpecs(ls),
       description: [...ls].sort((a, b) => b.description.length - a.description.length)[0].description,
       sizes: sizes.sort((a, b) => a - b),
+      fits: kind === 'binding' ? fits.sort((a, b) => FIT_ORDER.indexOf(a) - FIT_ORDER.indexOf(b)) : [],
       bestPrice: best.price,
       rrp,
       discount: rrp > best.price ? Math.round(((rrp - best.price) / rrp) * 100) : 0,

@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { isSnowboard } from './classify.ts'
+import { isBinding, isSnowboard } from './classify.ts'
 import { groupBoards } from './match.ts'
-import { normalize, type Listing } from './normalize.ts'
+import { normalize, type Kind, type Listing } from './normalize.ts'
 import type { Board } from '../src/types.ts'
 import { fetchAllProducts, type ShopifyProduct } from './shopify.ts'
 import { STORES } from './stores.ts'
@@ -23,12 +23,14 @@ async function loadStore(id: string, domain: string): Promise<ShopifyProduct[]> 
   return products
 }
 
+const FILES: Record<Kind, string> = { board: 'boards.json', binding: 'bindings.json' }
+
 /**
- * A store's listings from the last good run, rebuilt from boards.json, so a
- * store that fails today (rate limits, downtime) doesn't vanish from the site.
+ * A store's listings from the last good run, rebuilt from the output file, so
+ * a store that fails today (rate limits, downtime) doesn't vanish from the site.
  */
-function previousListings(storeId: string): Listing[] {
-  const file = join(outDir, 'boards.json')
+function previousListings(storeId: string, kind: Kind): Listing[] {
+  const file = join(outDir, FILES[kind])
   if (!existsSync(file)) return []
   const { boards } = JSON.parse(readFileSync(file, 'utf8')) as { boards: Board[] }
   return boards.flatMap((b) =>
@@ -39,43 +41,54 @@ function previousListings(storeId: string): Listing[] {
 }
 
 async function main() {
-  const listings: Listing[] = []
-  const storeStats: Record<string, { products: number; boards: number; ok: boolean }> = {}
+  const listings: Record<Kind, Listing[]> = { board: [], binding: [] }
+  const storeStats: Record<string, { products: number; ok: boolean } & Record<Kind, number>> = {}
 
   await Promise.all(
     STORES.map(async (store) => {
       try {
         const products = await loadStore(store.id, store.domain)
         // Sold-out listings are mostly past seasons' archive pages, so skip them.
-        const boards = products
-          .filter(isSnowboard)
-          .map((p) => normalize(p, store))
-          .filter((l) => l.inStock)
-        listings.push(...boards)
-        storeStats[store.id] = { products: products.length, boards: boards.length, ok: true }
-        console.log(`✓ ${store.name.padEnd(20)} ${String(boards.length).padStart(4)} boards / ${products.length} products`)
+        const pick = (test: (p: ShopifyProduct) => boolean, kind: Kind) =>
+          products
+            .filter(test)
+            .map((p) => normalize(p, store, kind))
+            .filter((l) => l.inStock)
+        const boards = pick(isSnowboard, 'board')
+        const bindings = pick(isBinding, 'binding')
+        listings.board.push(...boards)
+        listings.binding.push(...bindings)
+        storeStats[store.id] = { products: products.length, board: boards.length, binding: bindings.length, ok: true }
+        console.log(
+          `✓ ${store.name.padEnd(20)} ${String(boards.length).padStart(4)} boards ${String(bindings.length).padStart(4)} bindings / ${products.length} products`,
+        )
       } catch (err) {
-        const kept = previousListings(store.id)
-        listings.push(...kept)
-        storeStats[store.id] = { products: 0, boards: kept.length, ok: false }
-        console.error(`✗ ${store.name}: ${(err as Error).message} (kept ${kept.length} listings from the last run)`)
+        const board = previousListings(store.id, 'board')
+        const binding = previousListings(store.id, 'binding')
+        listings.board.push(...board)
+        listings.binding.push(...binding)
+        storeStats[store.id] = { products: 0, board: board.length, binding: binding.length, ok: false }
+        console.error(`✗ ${store.name}: ${(err as Error).message} (kept ${board.length} boards, ${binding.length} bindings from the last run)`)
       }
     }),
   )
 
-  const boards = groupBoards(listings).sort((a, b) => b.discount - a.discount || a.bestPrice - b.bestPrice)
-  const multiStore = boards.filter((b) => new Set(b.listings.map((l) => l.storeId)).size > 1).length
-
   mkdirSync(outDir, { recursive: true })
-  writeFileSync(
-    join(outDir, 'boards.json'),
-    JSON.stringify({
-      updatedAt: new Date().toISOString(),
-      stores: STORES.map((s) => ({ ...s, ...storeStats[s.id] })),
-      boards,
-    }),
-  )
-  console.log(`\n${boards.length} boards (${multiStore} sold at 2+ stores) from ${listings.length} listings → public/data/boards.json`)
+  const updatedAt = new Date().toISOString()
+  for (const kind of ['board', 'binding'] as Kind[]) {
+    const items = groupBoards(listings[kind], kind).sort((a, b) => b.discount - a.discount || a.bestPrice - b.bestPrice)
+    const multiStore = items.filter((b) => new Set(b.listings.map((l) => l.storeId)).size > 1).length
+    // Both files share one shape: `boards` holds the items, `stores[].boards` their count per store.
+    writeFileSync(
+      join(outDir, FILES[kind]),
+      JSON.stringify({
+        updatedAt,
+        stores: STORES.map((s) => ({ ...s, products: storeStats[s.id].products, boards: storeStats[s.id][kind], ok: storeStats[s.id].ok })),
+        boards: items,
+      }),
+    )
+    console.log(`${items.length} ${kind}s (${multiStore} sold at 2+ stores) from ${listings[kind].length} listings → public/data/${FILES[kind]}`)
+  }
 }
 
 main()
