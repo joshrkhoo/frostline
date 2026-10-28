@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { boardHref } from '../lib/router'
+import { itemHref } from '../lib/router'
 import { GENDER_LABEL, money, storeCount } from '../lib/format'
 import type { Board } from '../types'
 import { BoardImage } from './BoardImage'
@@ -24,7 +24,7 @@ export function BoardCard({ board, storeNames }: Props) {
 
   return (
     <a
-      href={boardHref(board.id)}
+      href={itemHref(board)}
       className="card glass"
       onPointerEnter={() => setHover(true)}
       onPointerLeave={() => setHover(false)}
@@ -45,7 +45,7 @@ export function BoardCard({ board, storeNames }: Props) {
           <div className="card-noimg display">{board.brand}</div>
         )}
         {board.discount > 0 && <span className="badge-deal card-badge">−{board.discount}%</span>}
-        <span className="card-spin chip">⟳ View in 3D</span>
+        {board.kind !== 'binding' && <span className="card-spin chip">⟳ View in 3D</span>}
       </div>
 
       <div className="card-body">

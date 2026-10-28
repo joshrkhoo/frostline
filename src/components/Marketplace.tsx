@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { applyFilters, facetCounts, activeFilterCount, type Filters, type SortKey } from '../lib/filters'
-import type { MarketData } from '../types'
+import type { Kind, MarketData } from '../types'
 import { BoardCard } from './BoardCard'
 import { FilterPanel } from './FilterPanel'
 import './Marketplace.css'
 
 interface Props {
+  kind: Kind
   data: MarketData
   filters: Filters
   onFilters: (f: Filters) => void
@@ -21,7 +22,10 @@ const SORTS: [SortKey, string][] = [
   ['name', 'Name A–Z'],
 ]
 
-export function Marketplace({ data, filters, onFilters }: Props) {
+const NOUN: Record<Kind, [string, string]> = { board: ['board', 'boards'], binding: ['binding', 'bindings'] }
+
+export function Marketplace({ kind, data, filters, onFilters }: Props) {
+  const [one, many] = NOUN[kind]
   const [limit, setLimit] = useState(PAGE)
   const [panelOpen, setPanelOpen] = useState(false)
   const results = useMemo(() => applyFilters(data.boards, filters), [data.boards, filters])
@@ -57,11 +61,11 @@ export function Marketplace({ data, filters, onFilters }: Props) {
                 Results for <span className="ice-text">“{filters.query}”</span>
               </>
             ) : (
-              'All snowboards'
+              (kind === 'binding' ? 'All bindings' : 'All snowboards')
             )}
           </h2>
           <p className="market-count">
-            {results.length} board{results.length === 1 ? '' : 's'} · {results.filter((b) => b.discount > 0).length} on sale
+            {results.length} {results.length === 1 ? one : many} · {results.filter((b) => b.discount > 0).length} on sale
           </p>
         </div>
         <div className="market-tools">
@@ -83,10 +87,10 @@ export function Marketplace({ data, filters, onFilters }: Props) {
 
       <div className="market-body">
         <div className={`market-side ${panelOpen ? 'open' : ''}`}>
-          <FilterPanel filters={filters} onChange={onFilters} facets={facets} stores={data.stores} />
+          <FilterPanel kind={kind} filters={filters} onChange={onFilters} facets={facets} stores={data.stores} />
           <div className="market-sheet-foot">
             <button className="btn btn-primary" onClick={() => setPanelOpen(false)}>
-              Show {results.length} board{results.length === 1 ? '' : 's'}
+              Show {results.length} {results.length === 1 ? one : many}
             </button>
           </div>
         </div>
@@ -95,7 +99,7 @@ export function Marketplace({ data, filters, onFilters }: Props) {
         <div>
           {results.length === 0 ? (
             <div className="market-empty glass">
-              <div className="display">No boards match</div>
+              <div className="display">No {many} match</div>
               <p>Try a different search or loosen the filters.</p>
             </div>
           ) : (
@@ -108,7 +112,7 @@ export function Marketplace({ data, filters, onFilters }: Props) {
           {results.length > limit && (
             <div className="market-more">
               <button className="btn" onClick={() => setLimit((l) => l + PAGE)}>
-                Load more boards <span className="market-more-n">{results.length - limit} left</span>
+                Load more {many} <span className="market-more-n">{results.length - limit} left</span>
               </button>
             </div>
           )}

@@ -1,11 +1,14 @@
+import { listHref } from '../lib/router'
+import type { Kind } from '../types'
 import './Header.css'
 
 interface Props {
+  kind: Kind
   query: string
   onQuery: (q: string) => void
 }
 
-export function Header({ query, onQuery }: Props) {
+export function Header({ kind, query, onQuery }: Props) {
   return (
     <header className="header">
       <div className="container header-inner">
@@ -24,12 +27,13 @@ export function Header({ query, onQuery }: Props) {
         </a>
 
         <nav className="nav">
-          <a href="#/" className="nav-link active">
-            Snowboards
+          <a href="#/" className={`nav-link ${kind === 'board' ? 'active' : ''}`}>
+            <span className="nav-full">Snowboards</span>
+            <span className="nav-short">Boards</span>
           </a>
-          <span className="nav-link soon" title="Coming soon">
-            Bindings <em>soon</em>
-          </span>
+          <a href="#/bindings" className={`nav-link ${kind === 'binding' ? 'active' : ''}`}>
+            Bindings
+          </a>
           <span className="nav-link soon" title="Coming soon">
             Boots <em>soon</em>
           </span>
@@ -43,14 +47,15 @@ export function Header({ query, onQuery }: Props) {
             <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
             <path d="m20 20-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
-          <span className="sr-only">Search snowboards</span>
+          <span className="sr-only">Search {kind === 'binding' ? 'bindings' : 'snowboards'}</span>
           <input
             type="search"
-            placeholder="Search boards, brands, styles…"
+            placeholder={kind === 'binding' ? 'Search bindings, brands, Step On…' : 'Search boards, brands, styles…'}
             value={query}
             onChange={(e) => {
               onQuery(e.target.value)
-              if (location.hash.startsWith('#/board')) location.hash = '#/'
+              // Typing on a product page goes back to the list it came from.
+              if (/^#\/(board|binding)\//.test(location.hash)) location.hash = listHref(kind)
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' })

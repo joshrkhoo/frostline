@@ -1,0 +1,163 @@
+.bhero {
+  position: relative;
+  overflow: hidden;
+  padding: 72px 0 32px;
+}
+.bhero-glow {
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 620px;
+  background:
+    radial-gradient(40% 50% at 78% 40%, rgba(59, 164, 255, 0.2), transparent 70%),
+    radial-gradient(30% 40% at 20% 20%, rgba(138, 227, 255, 0.1), transparent 70%);
+  pointer-events: none;
+}
+
+.bhero-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 48px;
+  align-items: center;
+}
+
+.bhero-title {
+  margin: 14px 0 18px;
+  font-size: clamp(36px, 4.6vw, 64px);
+  line-height: 1;
+  text-transform: uppercase;
+}
+.bhero-sub {
+  max-width: 480px;
+  margin: 0;
+  font-size: 17px;
+  color: #b4c3dc;
+}
+
+.bhero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  justify-content: start;
+  gap: 28px;
+  margin: 36px 0 0;
+}
+.bhero-stats dt {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.bhero-stats dd {
+  margin: 6px 0 0;
+  font-size: 26px;
+  font-weight: 700;
+}
+.bhero-updated {
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+/* Three deals; the best one is taller. */
+.bhero-deals {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 14px;
+  align-items: end;
+}
+.bhero-deal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.25s ease, border-color 0.25s;
+}
+.bhero-deal:hover {
+  transform: translateY(-4px);
+  border-color: var(--line-strong);
+}
+.bhero-deal-img {
+  height: 200px;
+  padding: 18px 14px 6px;
+  background: radial-gradient(70% 60% at 50% 55%, rgba(59, 164, 255, 0.16), transparent 70%);
+}
+.bhero-deal.lead .bhero-deal-img {
+  height: 260px;
+}
+.bhero-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+}
+.bhero-deal-body {
+  padding: 12px 16px 16px;
+}
+.bhero-deal-brand {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ice);
+}
+.bhero-deal-model {
+  margin: 4px 0 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.2;
+}
+.bhero-deal-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.bhero-deal-price .price {
+  font-size: 20px;
+}
+
+@media (max-width: 980px) {
+  .bhero-inner {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .bhero-stats {
+    grid-template-columns: repeat(2, auto);
+    gap: 18px 40px;
+  }
+}
+@media (max-width: 560px) {
+  .bhero {
+    padding-top: 40px;
+  }
+  .bhero-sub {
+    font-size: 16px;
+  }
+  .bhero-deals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .bhero-deal-img,
+  .bhero-deal.lead .bhero-deal-img {
+    height: 120px;
+    padding: 10px 6px 2px;
+  }
+  .bhero-badge {
+    top: 6px;
+    left: 6px;
+    transform: scale(0.85);
+    transform-origin: top left;
+  }
+  .bhero-deal-body {
+    padding: 8px 10px 10px;
+  }
+  .bhero-deal-model {
+    font-size: 13px;
+  }
+  .bhero-deal-price .price {
+    font-size: 15px;
+  }
+  .bhero-deal-price .was {
+    display: none;
+  }
+}

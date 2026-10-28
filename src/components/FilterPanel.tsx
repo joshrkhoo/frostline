@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { DEFAULT_FILTERS, activeFilterCount, type Filters } from '../lib/filters'
 import { GENDER_LABEL } from '../lib/format'
-import type { Gender, Store } from '../types'
+import type { Gender, Kind, Store } from '../types'
 import './FilterPanel.css'
 
 interface Props {
+  kind: Kind
   filters: Filters
   onChange: (f: Filters) => void
   facets: {
     brands: [string, number][]
     profiles: [string, number][]
+    entries: [string, number][]
     terrain: [string, number][]
     genders: [Gender, number][]
   }
@@ -20,6 +22,7 @@ const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x
 
 const DISCOUNTS = [0, 10, 20, 30, 40]
 const SIZES = [140, 145, 148, 150, 152, 154, 156, 158, 160, 162]
+const FITS = ['XS', 'S', 'M', 'L', 'XL']
 
 function Section({ title, children, open = true }: { title: string; children: React.ReactNode; open?: boolean }) {
   return (
@@ -30,7 +33,8 @@ function Section({ title, children, open = true }: { title: string; children: Re
   )
 }
 
-export function FilterPanel({ filters: f, onChange, facets, stores }: Props) {
+export function FilterPanel({ kind, filters: f, onChange, facets, stores }: Props) {
+  const binding = kind === 'binding'
   const [showAllBrands, setShowAllBrands] = useState(false)
   const set = (patch: Partial<Filters>) => onChange({ ...f, ...patch })
   const brands = showAllBrands ? facets.brands : facets.brands.slice(0, 10)
@@ -51,7 +55,7 @@ export function FilterPanel({ filters: f, onChange, facets, stores }: Props) {
         <label className="switch">
           <input type="checkbox" checked={f.splitboards} onChange={(e) => set({ splitboards: e.target.checked })} />
           <span />
-          Include splitboards
+          {binding ? 'Include splitboard bindings' : 'Include splitboards'}
         </label>
       </div>
 
@@ -95,15 +99,39 @@ export function FilterPanel({ filters: f, onChange, facets, stores }: Props) {
         </div>
       </Section>
 
-      <Section title="Size (cm)">
-        <div className="pill-row">
-          {SIZES.map((s) => (
-            <button key={s} className={`pill ${f.size === s ? 'on' : ''}`} onClick={() => set({ size: f.size === s ? null : s })}>
-              {s}
-            </button>
-          ))}
-        </div>
-      </Section>
+      {binding ? (
+        <Section title="Size">
+          <div className="pill-row">
+            {FITS.map((s) => (
+              <button key={s} className={`pill ${f.fit === s ? 'on' : ''}`} onClick={() => set({ fit: f.fit === s ? null : s })}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </Section>
+      ) : (
+        <Section title="Size (cm)">
+          <div className="pill-row">
+            {SIZES.map((s) => (
+              <button key={s} className={`pill ${f.size === s ? 'on' : ''}`} onClick={() => set({ size: f.size === s ? null : s })}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {binding && (
+        <Section title="Entry">
+          <div className="pill-row">
+            {facets.entries.map(([e, n]) => (
+              <button key={e} className={`pill ${f.entries.includes(e) ? 'on' : ''}`} onClick={() => set({ entries: toggle(f.entries, e) })}>
+                {e} <small>{n}</small>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="Terrain">
         <div className="pill-row">
@@ -115,15 +143,17 @@ export function FilterPanel({ filters: f, onChange, facets, stores }: Props) {
         </div>
       </Section>
 
-      <Section title="Profile">
-        <div className="pill-row">
-          {facets.profiles.map(([p, n]) => (
-            <button key={p} className={`pill ${f.profiles.includes(p) ? 'on' : ''}`} onClick={() => set({ profiles: toggle(f.profiles, p) })}>
-              {p} <small>{n}</small>
-            </button>
-          ))}
-        </div>
-      </Section>
+      {!binding && (
+        <Section title="Profile">
+          <div className="pill-row">
+            {facets.profiles.map(([p, n]) => (
+              <button key={p} className={`pill ${f.profiles.includes(p) ? 'on' : ''}`} onClick={() => set({ profiles: toggle(f.profiles, p) })}>
+                {p} <small>{n}</small>
+              </button>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="Brand">
         <div className="check-list">
